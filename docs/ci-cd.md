@@ -13,9 +13,11 @@ This project is configured for GitHub Actions CI/CD.
 
 - `.github/workflows/deploy.yml`
   - Runs on pushes to `test` and on manual dispatch.
+  - Validates the app in GitHub Actions before deployment.
+  - Builds frontend assets in GitHub Actions.
   - Connects to the VPS over SSH.
-  - Pulls the latest Git branch on the server.
-  - Runs Composer install, frontend build, migrations, cache refresh, and permission fixes on the server.
+  - Uploads the application to the VPS with `rsync`.
+  - Runs Composer install, migrations, cache refresh, and permission fixes on the server.
   - Ensures the Laravel scheduler cron entry exists.
 
 ## Required GitHub secrets
@@ -33,11 +35,9 @@ The target server needs:
 
 - PHP 8.1 or newer
 - Composer installed and available in `PATH`
-- Git installed and the repository already cloned at the deploy path
-- The deploy user must be able to `git fetch` and `git pull` from the repository on the server
 - Writable Laravel directories such as `storage` and `bootstrap/cache`
 - Database credentials already configured in `.env`
-- Node.js and npm installed on the server, because frontend assets are built during deployment
+- `rsync` available on the server
 - A valid `.env` file already present in the deploy path, or `.env.example` if you want the workflow to create one on first deploy
 
 ## Recommended first-time setup
@@ -45,12 +45,13 @@ The target server needs:
 1. Initialize or reconnect this project to a Git remote.
 2. Push the code to GitHub.
 3. Add the required repository secrets.
-4. Clone the repository on the VPS into `VPS_PATH`.
-5. Make sure the deployment user can write to `VPS_PATH` and can pull the `test` branch there.
+4. Make sure the deployment user can write to `VPS_PATH`.
+5. Make sure the VPS has PHP, Composer, and `rsync` installed.
 6. Push to `test` or trigger the deploy workflow manually from the Actions tab.
 
 ## Notes
 
 - The deploy workflow intentionally does not overwrite `.env` if it already exists.
-- The workflow assumes the server is the build host, so deployment time depends on server Composer and npm performance.
+- The VPS does not need a `.git` directory for deployment.
+- Frontend assets are built in GitHub Actions, so Node.js is not required on the VPS.
 - If your deploy branch is not `test`, update `.github/workflows/deploy.yml`.

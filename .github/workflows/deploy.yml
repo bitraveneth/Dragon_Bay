@@ -11,13 +11,81 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_ENV: testing
+      CACHE_DRIVER: array
+      DB_CONNECTION: sqlite
+      DB_DATABASE: database/database.sqlite
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          mkdir -p database
+          touch database/database.sqlite
+          php artisan key:generate
+
+      - name: Run PHPUnit
+        run: php artisan test
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Upload built assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-public-assets
+          path: public/build
+
   deploy:
     runs-on: ubuntu-latest
+    needs: validate
     timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download built assets
+        uses: actions/download-artifact@v4
+        with:
+          name: built-public-assets
+          path: public/build
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -31,12 +99,40 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      - name: Deploy to VPS
+      - name: Ensure VPS path exists
         env:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PATH: ${{ secrets.VPS_PATH }}
-          DEPLOY_BRANCH: test
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_PATH'"
+
+      - name: Sync application files
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.codex' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'node_modules/' \
+            --exclude 'vendor/' \
+            --exclude 'storage/' \
+            --exclude 'bootstrap/cache/' \
+            --exclude 'tests/' \
+            --exclude 'docs/' \
+            --exclude '.phpunit.result.cache' \
+            ./ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+
+      - name: Run remote deploy steps
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
         run: |
           ssh "$VPS_USER@$VPS_HOST" "bash -se" <<EOF
             set -Eeuo pipefail
@@ -56,10 +152,6 @@ jobs:
 
             log_step "Enter project directory"
             cd "$VPS_PATH"
-
-            log_step "Trust project directory for Git"
-            git config --global --add safe.directory "$VPS_PATH"
-            echo "[INFO] Git safe.directory ensured for $VPS_PATH"
 
             log_step "Ensure scheduler cron"
             CRON_MARKER="# saferpv1-laravel-scheduler"
@@ -93,26 +185,8 @@ jobs:
               echo "[INFO] APP_DEBUG=false ensured."
             fi
 
-            log_step "Pull latest code"
-            git fetch --prune origin
-            git checkout "$DEPLOY_BRANCH"
-            git pull --ff-only origin "$DEPLOY_BRANCH"
-
             log_step "Install PHP dependencies"
             composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
-
-            log_step "Build frontend assets"
-            if command -v npm >/dev/null 2>&1; then
-              if [ -f package-lock.json ]; then
-                npm ci --include=dev
-              else
-                npm install --include=dev
-              fi
-              npm run build
-              npm prune --omit=dev
-            else
-              echo "npm not found on server - skipping frontend build"
-            fi
 
             log_step "Enable maintenance mode"
             php artisan down --retry=60 || true
