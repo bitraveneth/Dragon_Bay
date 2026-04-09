@@ -1,0 +1,24 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('vehicles', function (Blueprint $table) {
+            $table->unique('name', 'vehicles_name_unique');
+            $table->unique('license_plate', 'vehicles_license_plate_unique');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('vehicles', function (Blueprint $table) {
+            $table->dropUnique('vehicles_name_unique');
+            $table->dropUnique('vehicles_license_plate_unique');
+        });
+    }
+};

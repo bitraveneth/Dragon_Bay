@@ -1,0 +1,193 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">
+                    Add Supplier
+                </h1>
+                <span class="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-400">
+                    Vendor Master
+                </span>
+            </div>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Capture vendor contact and tax details.
+            </p>
+        </div>
+        <a href="{{ route('admin.suppliers.index') }}" 
+           class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Suppliers
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="rounded-2xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-gray-900">
+        <div class="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 dark:bg-brand-500/10">
+                    <svg class="h-5 w-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Supplier Details</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Enter the supplier information below</p>
+                </div>
+            </div>
+        </div>
+
+        <form action="{{ route('admin.suppliers.store') }}" method="POST" class="p-6">
+            @csrf
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <!-- Supplier Name -->
+                <div class="sm:col-span-2">
+                    <label for="name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Name <span class="text-error-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="name" 
+                           name="name" 
+                           value="{{ old('name') }}" 
+                           required
+                           class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                           placeholder="e.g., ABC Corporation Ltd.">
+                    @error('name')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Contact Person -->
+                <div>
+                    <label for="contact_person" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Contact Person
+                    </label>
+                    <input type="text" 
+                           id="contact_person" 
+                           name="contact_person" 
+                           value="{{ old('contact_person') }}"
+                           class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                           placeholder="e.g., Md. Rahim Uddin">
+                    @error('contact_person')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label for="email" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Email
+                    </label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                            </svg>
+                        </div>
+                        <input type="email" 
+                               id="email" 
+                               name="email" 
+                               value="{{ old('email') }}"
+                               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                               placeholder="contact@supplier.com">
+                    </div>
+                    @error('email')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <label for="phone" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Phone
+                    </label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                            </svg>
+                        </div>
+                        <input type="text" 
+                               id="phone" 
+                               name="phone" 
+                               value="{{ old('phone') }}"
+                               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                               placeholder="+880 1XXX-XXXXXX">
+                    </div>
+                    @error('phone')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Tax ID -->
+                <div>
+                    <label for="tax_id" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Tax ID
+                    </label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                            </svg>
+                        </div>
+                        <input type="text" 
+                               id="tax_id" 
+                               name="tax_id" 
+                               value="{{ old('tax_id') }}"
+                               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                               placeholder="e.g., 123456789012">
+                    </div>
+                    @error('tax_id')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Address (Full Width) -->
+                <div class="sm:col-span-2">
+                    <label for="address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Address
+                    </label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute left-3 top-3 flex items-start">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                        <textarea id="address" 
+                                  name="address" 
+                                  rows="3"
+                                  class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                                  placeholder="Street address, city, postal code, country">{{ old('address') }}</textarea>
+                    </div>
+                    @error('address')
+                        <p class="mt-1 text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-8 flex items-center justify-end gap-3 border-t border-gray-100 pt-6 dark:border-gray-800">
+                <a href="{{ route('admin.suppliers.index') }}" 
+                   class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-theme-sm hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Save Supplier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection

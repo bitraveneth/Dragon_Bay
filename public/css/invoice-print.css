@@ -1,0 +1,186 @@
+/* Dedicated print stylesheet for the admin invoice page. */
+@media print {
+    @page {
+        size: A4;
+        margin: 8mm;
+    }
+
+    html,
+    body {
+        background: #ffffff !important;
+        color-scheme: light !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    #sidebar,
+    header,
+    .print-hidden,
+    #receipt-modal,
+    #credit-modal {
+        display: none !important;
+    }
+
+    .min-h-screen,
+    .print-main,
+    [data-tour="page-content"] {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .print-main {
+        margin-left: 0 !important;
+        min-width: 0 !important;
+    }
+
+    .min-h-screen {
+        display: block !important;
+    }
+
+    .min-h-screen > .flex-1 {
+        margin-left: 0 !important;
+    }
+
+    .print-invoice {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .print-invoice .rounded-2xl,
+    .print-invoice .rounded-xl {
+        box-shadow: none !important;
+        background-color: #ffffff !important;
+    }
+
+    .print-invoice .border {
+        border-color: #e5e7eb !important;
+    }
+
+    .print-only,
+    .print-only * {
+        color: #111827 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+        filter: none !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+
+    .print-only .bg-brand-500 {
+        background: #465fff !important;
+    }
+
+    .print-only .text-white {
+        color: #ffffff !important;
+    }
+
+    .print-only .text-gray-600 {
+        color: #4b5563 !important;
+    }
+
+    .print-only .border-gray-300 {
+        border-color: #d1d5db !important;
+    }
+
+    .print-only .border-gray-200 {
+        border-color: #e5e7eb !important;
+    }
+
+    .print-sheet,
+    .print-header {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+
+    .print-sheet {
+        margin-top: 0 !important;
+    }
+
+    .print-header {
+        border-bottom: 1px solid #d1d5db;
+        padding-bottom: 18px;
+    }
+
+    .print-header-summary {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .print-meta-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 24px;
+        align-items: start;
+        width: 100% !important;
+    }
+
+    .print-meta-card {
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px;
+        padding: 14px 16px;
+    }
+
+    .print-meta-row {
+        display: flex !important;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 3px 0;
+        font-size: 11px;
+    }
+
+    .print-meta-row + .print-meta-row {
+        border-top: 1px solid #f3f4f6;
+        margin-top: 5px;
+        padding-top: 7px;
+    }
+
+    .print-items-table {
+        width: 100% !important;
+        table-layout: fixed;
+    }
+
+    .print-items-table thead th {
+        background: #f9fafb !important;
+        font-weight: 700;
+    }
+
+    .print-items-table td,
+    .print-items-table th {
+        vertical-align: top;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .print-totals {
+        width: 520px;
+        margin-left: auto;
+        border-top: 2px solid #d1d5db;
+        margin-top: 8px;
+    }
+
+    .print-totals td {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+    }
+
+    .print-totals td:last-child {
+        width: 220px;
+    }
+}
+
+@media screen {
+    .print-only {
+        display: none !important;
+    }
+}
