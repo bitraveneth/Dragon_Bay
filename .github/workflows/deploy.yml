@@ -1,0 +1,156 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - test
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-test
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+          DEPLOY_BRANCH: test
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "bash -se" <<EOF
+            set -Eeuo pipefail
+
+            log_step() {
+              echo
+              echo "========== [STEP] \$1 =========="
+            }
+
+            APP_DOWN=0
+            cleanup() {
+              if [ "\$APP_DOWN" -eq 1 ]; then
+                php artisan up || true
+              fi
+            }
+            trap cleanup EXIT
+
+            log_step "Enter project directory"
+            cd "$VPS_PATH"
+
+            log_step "Trust project directory for Git"
+            git config --global --add safe.directory "$VPS_PATH"
+            echo "[INFO] Git safe.directory ensured for $VPS_PATH"
+
+            log_step "Ensure scheduler cron"
+            CRON_MARKER="# saferpv1-laravel-scheduler"
+            CRON_ENTRY="* * * * * cd \"$VPS_PATH\" && php artisan schedule:run >> /dev/null 2>&1 $CRON_MARKER"
+            ( crontab -l 2>/dev/null | grep -v "\$CRON_MARKER" || true; echo "\$CRON_ENTRY" ) | crontab -
+            echo "[INFO] Scheduler cron ensured."
+
+            log_step "Ensure environment file"
+            if [ ! -f .env ] && [ -f .env.example ]; then
+              cp .env.example .env
+              echo "[INFO] .env created from .env.example"
+            else
+              echo "[INFO] .env already exists"
+            fi
+
+            log_step "Ensure APP_KEY"
+            if [ -f .env ] && ( ! grep -q '^APP_KEY=' .env || grep -q '^APP_KEY=$' .env ); then
+              php artisan key:generate --force
+              echo "[INFO] APP_KEY generated."
+            else
+              echo "[INFO] APP_KEY already set."
+            fi
+
+            log_step "Set APP_DEBUG=false"
+            if [ -f .env ]; then
+              if grep -q '^APP_DEBUG=' .env; then
+                sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+              else
+                echo 'APP_DEBUG=false' >> .env
+              fi
+              echo "[INFO] APP_DEBUG=false ensured."
+            fi
+
+            log_step "Pull latest code"
+            git fetch --prune origin
+            git checkout "$DEPLOY_BRANCH"
+            git pull --ff-only origin "$DEPLOY_BRANCH"
+
+            log_step "Install PHP dependencies"
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            log_step "Build frontend assets"
+            if command -v npm >/dev/null 2>&1; then
+              if [ -f package-lock.json ]; then
+                npm ci --include=dev
+              else
+                npm install --include=dev
+              fi
+              npm run build
+              npm prune --omit=dev
+            else
+              echo "npm not found on server - skipping frontend build"
+            fi
+
+            log_step "Enable maintenance mode"
+            php artisan down --retry=60 || true
+            APP_DOWN=1
+
+            log_step "Run migrations"
+            php artisan migrate --force
+
+            log_step "Refresh Laravel caches"
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            log_step "Ensure storage symlink"
+            if [ -L public/storage ]; then
+              echo "[INFO] public/storage symlink already exists."
+            elif [ -e public/storage ]; then
+              echo "[WARN] public/storage exists but is not a symlink. Skipping auto-link."
+            else
+              php artisan storage:link
+              echo "[INFO] public/storage symlink created."
+            fi
+
+            log_step "Set runtime permissions"
+            if command -v sudo >/dev/null 2>&1; then
+              sudo chown -R www-data:www-data storage bootstrap/cache || true
+            else
+              chown -R www-data:www-data storage bootstrap/cache || true
+            fi
+            find storage -type d -exec chmod 775 {} \; || true
+            find storage -type f -exec chmod 664 {} \; || true
+            find bootstrap/cache -type d -exec chmod 775 {} \; || true
+            find bootstrap/cache -type f -exec chmod 664 {} \; || true
+
+            log_step "Disable maintenance mode"
+            php artisan up
+            APP_DOWN=0
+            echo
+            echo "========== [DONE] Deploy completed successfully =========="
+          EOF
