@@ -121,6 +121,7 @@ jobs:
             --exclude '.env.*' \
             --exclude 'node_modules/' \
             --exclude 'vendor/' \
+            --exclude 'public/hot' \
             --exclude 'storage/' \
             --exclude 'bootstrap/cache/' \
             --exclude 'tests/' \
@@ -187,6 +188,9 @@ jobs:
 
             log_step "Install PHP dependencies"
             composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            log_step "Remove stale Vite hot file"
+            rm -f public/hot
 
             log_step "Enable maintenance mode"
             php artisan down --retry=60 || true
