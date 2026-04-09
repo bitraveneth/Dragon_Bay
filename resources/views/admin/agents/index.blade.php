@@ -6,10 +6,10 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">
-                Agent Master
+                Client Directory
             </h1>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                List, search, and manage your agent network.
+                List, search, and manage your client accounts.
             </p>
         </div>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -25,8 +25,8 @@
                         type="search"
                         name="q"
                         value="{{ request('q') }}"
-                        placeholder="Search agents..."
-                        aria-label="Search agents"
+                        placeholder="Search clients..."
+                        aria-label="Search clients"
                         class="w-full sm:w-64 rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400">
                 </div>
                 <button type="submit" 
@@ -46,21 +46,21 @@
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add Agent
+                Add Client
             </a>
         </div>
     </div>
 
     <!-- Status Message -->
 
-    <!-- Agents Table -->
+    <!-- Clients Table -->
     @if($agents->isNotEmpty())
         <div class="rounded-2xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-gray-50 dark:bg-gray-800/50">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Agent</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Client</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Zone</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Parent</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Credit Limit</th>
@@ -197,14 +197,6 @@
                                                 </svg>
                                                 Ledger
                                             </a>
-                                            <a href="{{ route('admin.gifts.index', ['agent_id' => $agent->id]) }}"
-                                               class="flex items-center gap-1 px-3 py-1.5 text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">
-                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                          d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
-                                                </svg>
-                                                Gifts
-                                            </a>
                                         </div>
                                     </div>
                                 </td>
@@ -230,7 +222,7 @@
                                         </a>
                                         <form action="{{ route('admin.agents.destroy', $agent) }}" 
                                               method="POST" 
-                                              onsubmit="return confirm('Delete this agent? This action cannot be undone.');"
+                                              onsubmit="return confirm('Delete this client? This action cannot be undone.');"
                                               class="inline">
                                             @csrf
                                             @method('DELETE')
@@ -265,12 +257,12 @@
                           d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
             </div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No agents found</h3>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients found</h3>
             <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
                 @if(request()->filled('q'))
-                    No agents match your search criteria. Try a different search term.
+                    No clients match your search criteria. Try a different search term.
                 @else
-                    No agents registered yet. Add your first agent to start building your network.
+                    No clients registered yet. Add your first client to start building your account base.
                 @endif
             </p>
             <a href="{{ route('admin.agents.create') }}" 
@@ -278,7 +270,7 @@
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add Agent
+                Add Client
             </a>
         </div>
     @endif

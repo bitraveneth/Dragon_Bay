@@ -356,9 +356,9 @@
                  class="w-[22rem] rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Understand the ERP cycle</h3>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Understand the logistics flow</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Follow the real business flow: setup, procurement, production, inventory, sales, accounting, and reporting.
+                            Follow the real business flow: masters, inbound, operations, orders, billing, and reporting.
                         </p>
                     </div>
                     <button type="button"
@@ -372,7 +372,7 @@
 
                 <div class="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-xs text-gray-600 dark:bg-gray-800/80 dark:text-gray-300">
                     <div class="font-semibold text-gray-800 dark:text-white">Tour path</div>
-                    <div class="mt-1 leading-5">Control setup → Purchase orders → GRN → BOM → Production → Inventory → Orders → Invoices → Reconciliation → Reports</div>
+                    <div class="mt-1 leading-5">Masters setup → Purchase orders → Inbound receipts → Operations → Orders → Client invoices → Reconciliation → Reports</div>
                 </div>
 
                 <div class="mt-4 space-y-2">
@@ -390,7 +390,7 @@
                     </button>
                     <a href="{{ route('admin.products.index') }}"
                        class="inline-flex w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
-                        Start with products
+                        Start with catalog
                     </a>
                     @if(Route::has('admin.client-guide'))
                         <a href="{{ route('admin.client-guide') }}"

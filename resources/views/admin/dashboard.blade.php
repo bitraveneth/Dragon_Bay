@@ -28,7 +28,7 @@
         <x-ecommerce.monthly-target
             :currency-code="$currencyCode ?? config('app.currency', 'BDT')"
             :period-label="$currentMonthLabel ?? now()->format('F Y')"
-            :target-basis="$monthlyTargetBasis ?? 'No monthly sales target configured'"
+            :target-basis="$monthlyTargetBasis ?? 'No monthly order target configured'"
             :monthly-sales-target="$monthlySalesTarget ?? 0"
             :monthly-achieved="$monthlyAchieved ?? 0"
             :today-achieved="$todayAchieved ?? 0"
@@ -79,17 +79,17 @@
                     }
 
                     if (mode === 'production') {
-                        return [{ name: 'Production Qty', data: statsPayload.production }];
+                        return [{ name: 'Operational Output', data: statsPayload.production }];
                     }
 
                     if (mode === 'revenue') {
-                        return [{ name: `Revenue (${currencyCode})`, data: statsPayload.revenue }];
+                        return [{ name: `Billed Value (${currencyCode})`, data: statsPayload.revenue }];
                     }
 
                     return [
                         { name: 'Orders', data: statsPayload.orders },
-                        { name: 'Production Qty', data: statsPayload.production },
-                        { name: `Revenue (${currencyCode})`, data: statsPayload.revenue },
+                        { name: 'Operational Output', data: statsPayload.production },
+                        { name: `Billed Value (${currencyCode})`, data: statsPayload.revenue },
                     ];
                 };
 
@@ -114,7 +114,7 @@
                             parentHeightOffset: 0,
                         },
                         series: [{
-                            name: 'Sales (orders)',
+                            name: 'Client Orders',
                             data: orders,
                         }],
                         colors: ['#465FFF'],

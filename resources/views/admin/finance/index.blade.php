@@ -18,10 +18,10 @@
                 
                 <div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                        Customer invoices
+                        Client invoices
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Sales invoices, receipts, and outstanding balances
+                        Client billing, receipts, and outstanding balances
                     </p>
                 </div>
             </div>
@@ -75,7 +75,7 @@
                 </div>
                 <div class="relative">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Net Sales</span>
+                        <span class="text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Net Billed Value</span>
                         <div class="rounded-lg bg-blue-light-100 p-2 dark:bg-blue-light-900/30">
                             <svg class="h-4 w-4 text-blue-light-700 dark:text-blue-light-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v9.25m-1.5-9H5.625m-.75 0H4.5m10.5 6h3.75M4.5 15h9.75" />
@@ -144,7 +144,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Invoices</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Client Invoices</h3>
                     </div>
                     <span class="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                         {{ $invoices->count() }} of {{ $invoices->total() ?? $invoices->count() }} invoices
@@ -156,7 +156,7 @@
                     <thead class="bg-gray-50 dark:bg-gray-800/50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Invoice</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Order / Agent</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Order / Client</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Net</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">VAT</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Withholding</th>
@@ -333,9 +333,9 @@
                         </svg>
                     </div>
                 </div>
-                <h2 class="mt-8 text-2xl font-bold text-gray-900 dark:text-white">No Invoices</h2>
+                <h2 class="mt-8 text-2xl font-bold text-gray-900 dark:text-white">No Client Invoices</h2>
                 <p class="mt-3 text-base text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                    No invoices have been created yet. Invoices will appear here when orders are processed.
+                    No invoices have been created yet. Client billing records will appear here when orders are processed.
                 </p>
             </div>
         </div>

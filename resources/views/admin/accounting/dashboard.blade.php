@@ -27,12 +27,12 @@
                     </div>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Accounting</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Finance & Billing</p>
                     <h1 class="mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-3xl font-bold text-transparent dark:from-white dark:to-gray-300">
                         Dashboard
                     </h1>
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Period-based accounting snapshot showing invoice-basis sales, cash-basis collections, operating costs, payroll, and management profit estimate.
+                        Period-based finance snapshot showing invoice-basis billing, cash-basis collections, operating costs, payroll, and management profit estimate.
                     </p>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Dashboard period</div>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-300">Choose a reporting window for the accounting snapshot.</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-300">Choose a reporting window for the finance snapshot.</p>
                     </div>
                     <span class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-theme-xs dark:bg-gray-900 dark:text-gray-200">
                         {{ $rangeOptions[$range] ?? 'Custom range' }}
@@ -125,7 +125,7 @@
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-gray-900">
-            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Net sales</div>
+            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Net billed value</div>
             <div class="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{{ $currencyCode }} {{ number_format($netSales, 0) }}</div>
             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Invoice basis. Net invoice value before VAT for the selected period.</p>
         </article>
@@ -137,7 +137,7 @@
         </article>
 
         <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-gray-900">
-            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Outstanding receivables</div>
+            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Open receivables</div>
             <div class="mt-3 text-3xl font-semibold text-orange-600 dark:text-orange-400">{{ $currencyCode }} {{ number_format($outstanding, 0) }}</div>
             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Invoice basis. Outstanding after receipts, advances, withholding, and credit notes.</p>
         </article>
@@ -180,14 +180,14 @@
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Invoice-basis view</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use this section when you want to understand invoicing and receivables rather than cash in bank.</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use this section when you want to understand client billing and receivables rather than cash in bank.</p>
                 </div>
             </div>
 
             <div class="mt-5 space-y-4">
                 <div class="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-4 dark:bg-gray-800/60">
                     <div>
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">Net sales</div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">Net billed value</div>
                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Invoice value before VAT</div>
                     </div>
                     <div class="text-right text-lg font-semibold text-gray-900 dark:text-white">{{ $currencyCode }} {{ number_format($netSales, 0) }}</div>

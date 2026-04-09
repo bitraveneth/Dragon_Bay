@@ -16,10 +16,10 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                        Inventory Dashboard
+                        Operations Dashboard
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        View reserved vs. available stock and expiring batches
+                        Monitor warehouse availability, reservations, and aging batches
                     </p>
                 </div>
             </div>
@@ -95,7 +95,7 @@
                 </svg>
             </div>
             <h3 class="mt-4 text-sm font-medium text-gray-900 dark:text-white">No stock data available</h3>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">No inventory records found.</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">No operations stock records found.</p>
         </div>
     @endif
 
@@ -128,7 +128,7 @@
                     <table class="w-full">
                         <thead class="bg-gray-50 dark:bg-gray-800/50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Product</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Catalog Item</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Batch</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Expiry</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Warehouse</th>
@@ -201,8 +201,8 @@
                 </svg>
             </div>
             <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Stock Movements</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Last 10 inventory transactions – transfers, write‑offs, deliveries</p>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Warehouse Movements</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Last 10 warehouse transactions - transfers, write-offs, and dispatches</p>
             </div>
         </div>
 
@@ -218,7 +218,7 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Warehouse</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Product</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Catalog Item</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Qty</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Type</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Reference</th>
@@ -260,7 +260,7 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize {{ $movementColor }}">
-                                            {{ $movement->type }}
+                                            {{ $movement->type === 'sale' ? 'dispatch' : $movement->type }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
@@ -286,77 +286,5 @@
         @endif
     </div>
 
-    <!-- Recent Production Runs Section -->
-    <div class="space-y-4">
-        <div class="flex items-center gap-3">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-100 to-brand-50 dark:from-brand-900/30 dark:to-brand-800/30">
-                <svg class="h-4 w-4 text-brand-700 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM8 7h8M8 11h6M8 15h4" />
-                </svg>
-            </div>
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Production Runs</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Last 10 approved production runs that posted stock to warehouses</p>
-            </div>
-        </div>
-
-        @if($recentRuns->isEmpty())
-            <div class="rounded-2xl border border-gray-200 bg-white/50 p-8 text-center dark:border-gray-800 dark:bg-gray-900/50">
-                <p class="text-sm text-gray-600 dark:text-gray-400">No approved production runs found.</p>
-            </div>
-        @else
-            <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50 dark:bg-gray-800/50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Warehouse</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Product</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Batch</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Qty</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Order No.</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                            @foreach($recentRuns as $run)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                        {{ $run->approved_at?->format('d M Y') ?? $run->created_at?->format('d M Y') }}
-                                    </td>
-                                    <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                        {{ optional($run->warehouse)->name ?? '—' }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $run->product->name ?? '—' }}</p>
-                                            @if($run->product?->sku)
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">SKU: {{ $run->product->sku }}</p>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="font-mono text-sm font-medium text-gray-900 dark:text-white">
-                                            {{ $run->batch->batch_code ?? '—' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        <span class="text-sm font-semibold text-success-600 dark:text-success-400">
-                                            +{{ number_format($run->quantity, 0) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="font-mono text-xs text-gray-600 dark:text-gray-400">
-                                            {{ $run->order_number ?? '—' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        @endif
-    </div>
 </div>
 @endsection

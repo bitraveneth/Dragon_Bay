@@ -19,7 +19,7 @@
 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
     <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Recent Orders</h3>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Recent Client Orders</h3>
         </div>
 
         <div class="flex items-center gap-3">
@@ -42,7 +42,7 @@
                         <p class="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Order</p>
                     </th>
                     <th class="py-3 text-left">
-                        <p class="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Agent</p>
+                        <p class="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Client</p>
                     </th>
                     <th class="py-3 text-left">
                         <p class="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Delivery date</p>
@@ -104,7 +104,7 @@
                 @empty
                     <tr>
                         <td colspan="5" class="py-6 text-center text-theme-sm text-gray-500 dark:text-gray-400">
-                            No recent orders yet.
+                            No recent client orders yet.
                         </td>
                     </tr>
                 @endforelse

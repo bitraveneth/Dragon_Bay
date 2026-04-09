@@ -1,6 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $showManufacturing = \App\Helpers\MenuHelper::isBusinessAreaVisible('manufacturing');
+    $showEmployees = \App\Helpers\MenuHelper::isBusinessAreaVisible('employees');
+    $showCrm = \App\Helpers\MenuHelper::isBusinessAreaVisible('crm');
+@endphp
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
     {{-- Hero Header --}}
     <div class="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:p-8">
@@ -31,44 +36,50 @@
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/40 dark:to-brand-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-brand-100/70 dark:border-brand-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('products') !!}
                 </span>
-                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Control</span>
+                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Masters</span>
             </a>
+            @if($showManufacturing)
             <a href="#help-manufacturing" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-light-50 to-blue-light-100 dark:from-blue-light-900/40 dark:to-blue-light-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-blue-light-100/70 dark:border-blue-light-500/40">
                     {!! \App\Helpers\MenuHelper::getIconSvg('manufacturing') !!}
                 </span>
                 <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Manufacturing</span>
             </a>
+            @endif
             <a href="#help-inventory" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-success-50 to-success-100 dark:from-success-900/30 dark:to-success-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-success-100/70 dark:border-success-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('inventory') !!}
                 </span>
-                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Inventory</span>
+                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Operations</span>
             </a>
             <a href="#help-sales" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-orange-100/70 dark:border-orange-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('sales') !!}
                 </span>
-                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Sales</span>
+                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Orders</span>
             </a>
             <a href="#help-accounting" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-purple-100/70 dark:border-purple-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('accounting') !!}
                 </span>
-                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Accounting</span>
+                <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Finance</span>
             </a>
+            @if($showEmployees)
             <a href="#help-employees" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/40 dark:to-gray-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-gray-100/70 dark:border-gray-700/40">
                     {!! \App\Helpers\MenuHelper::getIconSvg('default') !!}
                 </span>
                 <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">HR</span>
             </a>
+            @endif
+            @if($showCrm)
             <a href="#help-crm" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/30 dark:to-pink-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-pink-100/70 dark:border-pink-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('reports') !!}
                 </span>
                 <span class="text-xs font-medium text-center text-gray-700 dark:text-gray-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">CRM</span>
             </a>
+            @endif
             <a href="#help-system" class="group flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all hover:-translate-y-0.5">
                 <span class="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-900/10 text-brand-600 dark:text-brand-300 shadow-theme-xs border border-indigo-100/70 dark:border-indigo-500/30">
                     {!! \App\Helpers\MenuHelper::getIconSvg('system') !!}
@@ -88,8 +99,8 @@
                         {!! \App\Helpers\MenuHelper::getIconSvg('products') !!}
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">1. Control (Masters & Settings)</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Products, Agents, Warehouses, Employees এবং System settings</p>
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">1. Masters & Setup</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Catalog, clients, hubs, routes, and system access setup</p>
                     </div>
                 </div>
                 <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 transform transition-transform duration-200 section-arrow">
@@ -109,7 +120,7 @@
                         <div class="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0">💰</div>
                         <div>
                             <h3 class="font-semibold text-gray-900 dark:text-white mb-1">Tax & VAT classes</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Control → Products → Tax & VAT classes এ VAT rate, HSN/SAC এবং local tax code সেট করুন। প্রোডাক্টে ক্লাস সিলেক্ট করলে VAT অটো ক্যালকুলেট হবে।</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Masters → Catalog → Tax & VAT classes এ VAT rate, HSN/SAC এবং local tax code সেট করুন। Catalog item এ class সিলেক্ট করলে VAT auto calculate হবে।</p>
                             <div class="mt-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-2">
                                 <img
                                     src="{{ asset('images/help/tax/tax-vat-classes.png') }}"
@@ -129,7 +140,7 @@
                         <div class="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0">📦</div>
                         <div>
                             <h3 class="font-semibold text-gray-900 dark:text-white mb-1">Packaging types</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Control → Products → Packaging types এ Bottle, Carton, Crate-এর ইউনিট ও বর্ণনা সেট করুন। এই কনফিগারেশন Picking, Packing slip এবং ইনভেন্টরি ভিউতে দেখাবে।</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Masters → Catalog → Packaging types এ parcel, carton, crate-এর ইউনিট ও বর্ণনা সেট করুন। এই কনফিগারেশন pick list, dispatch slip, এবং operations view-তে দেখাবে।</p>
                             <div class="mt-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-2">
                                 <img
                                     src="{{ asset('images/help/products/packaging-types.png') }}"
@@ -144,17 +155,17 @@
                         </div>
                     </div>
                     
-                    <!-- Products -->
+                    <!-- Catalog -->
                     <div class="flex items-start gap-4">
                         <div class="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0">🏷️</div>
                         <div>
-                            <h3 class="font-semibold text-gray-900 dark:text-white mb-1">Products</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Control → Products → Products – প্রতিটি SKU এর জন্য:</p>
+                            <h3 class="font-semibold text-gray-900 dark:text-white mb-1">Catalog</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Masters → Catalog – প্রতিটি service/item এর জন্য:</p>
                             <div class="grid grid-cols-2 gap-2 text-xs">
                                 <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">SKU, নাম, Size, Volume</span>
                                 <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">Packaging type, Tax class</span>
-                                <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">Mineral source, pH, TDS</span>
-                                <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">Barcode / QR code</span>
+                                <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">Rate card / service classification</span>
+                                <span class="bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">Barcode / internal reference</span>
                             </div>
                         </div>
                     </div>
@@ -164,13 +175,14 @@
                         <div class="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0">🏢</div>
                         <div>
                             <h3 class="font-semibold text-gray-900 dark:text-white mb-1">Warehouses & Locations</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Control → Warehouses – Central depot/Factory তৈরি করুন, Location code (R1-S2-B3) দিয়ে rack লোকেশন সেট করুন।</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Masters → Hubs & warehouses – origin, transit, and destination hubs তৈরি করুন, Location code (R1-S2-B3) দিয়ে rack location সেট করুন।</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        @if($showManufacturing)
         <!-- Manufacturing Section -->
         <div id="help-manufacturing" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="flex items-center justify-between p-6 cursor-pointer section-trigger" data-target="manufacturing-content">
@@ -220,6 +232,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <!-- Inventory Section -->
         <div id="help-inventory" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -229,8 +242,8 @@
                         {!! \App\Helpers\MenuHelper::getIconSvg('inventory') !!}
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">3. Inventory</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Transfers, Deliveries, Packing, Fleet</p>
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">3. Operations & Fulfillment</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Inbound, transfers, dispatch, POD, fleet</p>
                     </div>
                 </div>
                 <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 transform transition-transform duration-200 section-arrow">
@@ -249,7 +262,7 @@
                         <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                             <span class="text-green-600 dark:text-green-400 text-xl">📊</span>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Inventory dashboard</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Operations dashboard</h4>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">warehouse + product + batch অনুযায়ী available / reserved stock</p>
                             </div>
                         </div>
@@ -263,14 +276,14 @@
                         <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                             <span class="text-green-600 dark:text-green-400 text-xl">🚚</span>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Deliveries & POD</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Dispatch & POD</h4>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">Route, Vehicle, Driver, Status, POD photo</p>
                             </div>
                         </div>
                         <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                             <span class="text-green-600 dark:text-green-400 text-xl">📄</span>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Packing slips</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Dispatch slips</h4>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">One click এ packing slip প্রিন্ট</p>
                             </div>
                         </div>
@@ -301,8 +314,8 @@
                         {!! \App\Helpers\MenuHelper::getIconSvg('sales') !!}
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">4. Sales</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Agents, Orders, Deliveries</p>
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">4. Orders & Clients</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Clients, orders, commissions, delivery flow</p>
                     </div>
                 </div>
                 <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 transform transition-transform duration-200 section-arrow">
@@ -321,21 +334,21 @@
                         <div class="flex items-start gap-3">
                             <div class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-sm flex-shrink-0 mt-0.5">1</div>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Agents</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">ডিলার/এজেন্ট প্রোফাইল: Name, Area, Zone, Location code, Credit limit, KYC documents</p>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Clients</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Client/agent profile: Name, Area, Zone, Location code, Credit limit, KYC documents</p>
                             </div>
                         </div>
                         <div class="flex items-start gap-3">
                             <div class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-sm flex-shrink-0 mt-0.5">2</div>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Price lists & Commission</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Rate cards & Commission</h4>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">Base price, special price per SKU, commission rules (২%)</p>
                             </div>
                         </div>
                         <div class="flex items-start gap-3">
                             <div class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-sm flex-shrink-0 mt-0.5">3</div>
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-white">Sales orders flow</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-white">Client orders flow</h4>
                                 <ol class="list-decimal pl-5 text-sm text-gray-600 dark:text-gray-400 mt-1 space-y-1">
                                     <li>Agent নির্বাচন</li>
                                     <li>Order type & Delivery date</li>
@@ -349,6 +362,7 @@
             </div>
         </div>
 
+        @if($showEmployees)
         <!-- Employees Section -->
         <div id="help-employees" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="flex items-center justify-between p-6 cursor-pointer section-trigger" data-target="employees-content">
@@ -408,6 +422,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <!-- Accounting Section -->
         <div id="help-accounting" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -417,7 +432,7 @@
                         {!! \App\Helpers\MenuHelper::getIconSvg('accounting') !!}
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">5. Accounting</h2>
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">5. Finance & Billing</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Invoices, Receipts, Expenses, Reports</p>
                     </div>
                 </div>
@@ -439,7 +454,7 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="border-l-2 border-red-400 pl-3">
-                            <h4 class="font-medium text-gray-900 dark:text-white flex items-center gap-1">🧾 Customer invoices</h4>
+                            <h4 class="font-medium text-gray-900 dark:text-white flex items-center gap-1">🧾 Client invoices</h4>
                             <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Delivered order থেকে invoice → AR ↑, Sales Revenue ↑, VAT Payable ↑</p>
                         </div>
                         <div class="border-l-2 border-red-400 pl-3">
@@ -474,6 +489,7 @@
             </div>
         </div>
 
+        @if($showCrm)
         <!-- CRM Section -->
         <div id="help-crm" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="flex items-center justify-between p-6 cursor-pointer section-trigger" data-target="crm-content">
@@ -513,6 +529,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <!-- System Section -->
         <div id="help-system" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -603,12 +620,18 @@
                             <p><code>public/images/help/control/control-overview.png</code></p>
                             <p><code>public/images/help/tax/tax-vat-classes.png</code></p>
                             <p><code>public/images/help/products/packaging-types.png</code></p>
+                            @if($showManufacturing)
                             <p><code>public/images/help/manufacturing/manufacturing-overview.png</code></p>
+                            @endif
                             <p><code>public/images/help/inventory/inventory-overview.png</code></p>
                             <p><code>public/images/help/sales/sales-overview.png</code></p>
+                            @if($showEmployees)
                             <p><code>public/images/help/employees/employees-overview.png</code></p>
+                            @endif
                             <p><code>public/images/help/accounting/accounting-overview.png</code></p>
+                            @if($showCrm)
                             <p><code>public/images/help/crm/crm-overview.png</code></p>
+                            @endif
                             <p><code>public/images/help/system/system-overview.png</code></p>
                         </div>
                     </div>
@@ -620,15 +643,19 @@
                         </div>
                         <ol class="space-y-2">
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">1.</span> Configure masters</li>
+                            @if($showManufacturing)
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">2.</span> Set BOM and production setup</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">3.</span> Purchase and receive materials</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">4.</span> Run production, QC, stock confirm</li>
+                            @endif
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">5.</span> Manage inventory operations</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">6.</span> Process sales order lifecycle</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">7.</span> Deliver and capture POD</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">8.</span> Invoice, receipt, reconcile</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">9.</span> Handle returns and credit notes</li>
+                            @if($showEmployees)
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">10.</span> Track HR and field activities</li>
+                            @endif
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">11.</span> Generate and manage notifications</li>
                             <li class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-3 text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold text-brand-600 dark:text-brand-400">12.</span> Keep cron and queue running</li>
                         </ol>

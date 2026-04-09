@@ -4,10 +4,10 @@ $tourAuthUser = auth()->user();
 $tourSteps = collect([
     [
         'key' => 'products',
-        'title' => 'Create products and materials',
+        'title' => 'Create catalog items',
         'section' => 'Control Setup',
-        'purpose' => 'Every downstream workflow depends on valid products, SKUs, and materials.',
-        'action' => 'Before adding a product, set up Packaging Types and Tax / VAT Classes. Then create the SKU with its name, price, packaging, and tax linkage.',
+        'purpose' => 'Every downstream workflow depends on valid catalog items, SKUs, and pricing setup.',
+        'action' => 'Before adding a catalog item, set up Packaging Types and Tax / VAT Classes. Then create the SKU with its name, price, packaging, and tax linkage.',
         'path' => route('admin.products.index'),
         'selector' => '[data-tour="products-primary-action"]',
         'permission' => 'control.products',
@@ -16,7 +16,7 @@ $tourSteps = collect([
         'key' => 'products-form',
         'title' => 'Fill the product form',
         'section' => 'Control Setup',
-        'purpose' => 'A usable product record needs more than just a name. Sales, inventory, VAT, and packaging all read from this setup.',
+        'purpose' => 'A usable catalog record needs more than just a name. Orders, operations, VAT, and packaging all read from this setup.',
         'action' => 'If Packaging Types and Tax / VAT Classes are already created, fill Product Name, SKU, base price, packaging type, and tax class first. Then add size, volume, image, and description.',
         'path' => route('admin.products.create'),
         'selector' => '[data-tour="product-form-basics"]',
@@ -27,7 +27,7 @@ $tourSteps = collect([
         'key' => 'products-save',
         'title' => 'Save and publish the SKU',
         'section' => 'Control Setup',
-        'purpose' => 'Saving the product makes it available to pricing, stock, BOM, and order workflows.',
+        'purpose' => 'Saving the item makes it available to pricing, stock, and order workflows.',
         'action' => 'After checking the required fields and keeping the SKU active, use Save Product to add it to the catalog.',
         'path' => route('admin.products.create'),
         'selector' => '[data-tour="product-form-submit"]',
@@ -35,10 +35,10 @@ $tourSteps = collect([
     ],
     [
         'key' => 'agents',
-        'title' => 'Register agents and customers',
+        'title' => 'Register clients',
         'section' => 'Control Setup',
-        'purpose' => 'Sales orders, credit checks, pricing, and commissions all depend on the agent master.',
-        'action' => 'Create agents, then maintain their price lists, credit terms, and commission rules.',
+        'purpose' => 'Orders, credit checks, pricing, and commissions all depend on the client master.',
+        'action' => 'Create client accounts, then maintain their price lists, credit terms, and commission rules.',
         'path' => route('admin.agents.index'),
         'selector' => '[data-tour="agents-primary-action"]',
         'permission' => 'control.agents',
@@ -84,40 +84,20 @@ $tourSteps = collect([
         'permission' => 'inventory.manage',
     ],
     [
-        'key' => 'boms',
-        'title' => 'Define BOMs',
-        'section' => 'Manufacturing',
-        'purpose' => 'Bills of material define what production will consume.',
-        'action' => 'Map each finished good to its raw materials and packaging quantities before production runs are created.',
-        'path' => route('admin.boms.index'),
-        'selector' => '[data-tour="boms-primary-action"]',
-        'permission' => 'manufacturing.manage',
-    ],
-    [
-        'key' => 'production',
-        'title' => 'Run production orders',
-        'section' => 'Manufacturing',
-        'purpose' => 'Production converts material stock into finished goods with batch control.',
-        'action' => 'Create production runs, issue materials, confirm stock, and track QC-ready finished output.',
-        'path' => route('admin.production.index'),
-        'selector' => '[data-tour="production-primary-action"]',
-        'permission' => 'manufacturing.manage',
-    ],
-    [
         'key' => 'inventory',
-        'title' => 'Review inventory position',
-        'section' => 'Inventory',
+        'title' => 'Review operations position',
+        'section' => 'Operations',
         'purpose' => 'This shows what is available, reserved, and ready for fulfilment.',
-        'action' => 'Use the inventory views to check stock health before promising deliveries or planning more production.',
+        'action' => 'Use the operations views to check stock health before promising deliveries or dispatching new orders.',
         'path' => route('admin.inventory.index'),
         'selector' => '[data-tour="inventory-overview-header"]',
         'permission' => 'inventory.manage',
     ],
     [
         'key' => 'orders',
-        'title' => 'Capture sales orders',
-        'section' => 'Sales',
-        'purpose' => 'Sales orders are the market-side trigger for reservation, delivery, invoicing, and commissions.',
+        'title' => 'Capture client orders',
+        'section' => 'Orders',
+        'purpose' => 'Client orders are the trigger for reservation, delivery, invoicing, and commissions.',
         'action' => 'Enter orders, apply pricing, validate credit, and move demand into warehouse fulfilment.',
         'path' => route('admin.orders.index'),
         'selector' => '[data-tour="orders-primary-action"]',
@@ -125,8 +105,8 @@ $tourSteps = collect([
     ],
     [
         'key' => 'finance',
-        'title' => 'Issue customer invoices',
-        'section' => 'Accounting',
+        'title' => 'Issue client invoices',
+        'section' => 'Finance',
         'purpose' => 'Delivered quantities become invoices, VAT, and receivable entries here.',
         'action' => 'Review invoices, receipts, credit notes, and outstanding balances after delivery is confirmed.',
         'path' => route('admin.finance.index'),
@@ -136,7 +116,7 @@ $tourSteps = collect([
     [
         'key' => 'reconciliation',
         'title' => 'Reconcile collections',
-        'section' => 'Accounting',
+        'section' => 'Finance',
         'purpose' => 'Cash collection is not complete until receipts are reconciled.',
         'action' => 'Use bank reconciliation to confirm collected receipts against the current finance period.',
         'path' => route('admin.finance.reconciliation'),
@@ -148,7 +128,7 @@ $tourSteps = collect([
         'title' => 'Close the cycle with reports',
         'section' => 'Reporting',
         'purpose' => 'Reports convert operations into management and financial truth.',
-        'action' => 'Use the reports dashboard to review production, sales, finance, tax, and payroll summaries after transactions are complete.',
+        'action' => 'Use the reports dashboard to review orders, finance, tax, and operational summaries after transactions are complete.',
         'path' => route('admin.reports.dashboard'),
         'selector' => '[data-tour="reports-drilldown"]',
         'permission' => 'reports.view',
@@ -164,6 +144,10 @@ $tourSteps = collect([
         'permission' => 'system.settings',
     ],
 ])->filter(function ($step) use ($tourAuthUser) {
+    if (!empty($step['path']) && \App\Helpers\MenuHelper::isAdminPathHidden($step['path'])) {
+        return false;
+    }
+
     return empty($step['permission']) || \App\Helpers\Permission::can($tourAuthUser, $step['permission']);
 })->map(function ($step) {
     unset($step['permission']);

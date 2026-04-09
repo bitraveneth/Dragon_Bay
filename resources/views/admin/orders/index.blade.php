@@ -20,7 +20,7 @@
                         Orders
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Track agent orders and their current statuses
+                        Track client orders and their current status
                     </p>
                 </div>
             </div>
@@ -43,7 +43,7 @@
             $typeFilter = $orderTypeFilter ?? 'all';
             $filterTabs = [
                 ['value' => 'all', 'label' => 'All orders'],
-                ['value' => 'sales', 'label' => 'Sales orders'],
+                ['value' => 'sales', 'label' => 'Standard orders'],
                 ['value' => 'return', 'label' => 'Return orders'],
             ];
         @endphp
@@ -101,7 +101,7 @@
                 </div>
                 <div class="relative">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Revenue</span>
+                        <span class="text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Order Value</span>
                         <div class="rounded-lg bg-success-100 p-2 dark:bg-success-900/30">
                             <svg class="h-4 w-4 text-success-700 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -109,7 +109,7 @@
                         </div>
                     </div>
                     <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ config('app.currency', 'BDT') }} {{ number_format($totalRevenue, 0) }}</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total order value</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Booked value across all visible orders</p>
                 </div>
             </div>
 
@@ -129,7 +129,7 @@
                         </div>
                     </div>
                     <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ config('app.currency', 'BDT') }} {{ number_format($totalCommission, 0) }}</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total agent commission</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total commission accrued</p>
                 </div>
             </div>
 
@@ -161,7 +161,7 @@
             <div class="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        {{ $typeFilter === 'sales' ? 'Sales Orders' : ($typeFilter === 'return' ? 'Return Orders' : 'All Orders') }}
+                        {{ $typeFilter === 'sales' ? 'Standard Orders' : ($typeFilter === 'return' ? 'Return Orders' : 'All Orders') }}
                     </h3>
                     <span class="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                         {{ $orders->count() }} of {{ $totalOrders }} orders
@@ -172,7 +172,7 @@
                 <table class="w-full">
                     <thead class="bg-gray-50 dark:bg-gray-800/50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Agent</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Client</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Type</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Delivery</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Status</th>
@@ -218,7 +218,7 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium capitalize {{ $order->order_type === 'return' ? 'bg-error-100 text-error-700 dark:bg-error-500/20 dark:text-error-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
-                                        {{ $order->order_type === 'return' ? 'Customer return' : $order->order_type }}
+                                        {{ $order->order_type === 'return' ? 'Return order' : $order->order_type }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4">
@@ -308,7 +308,7 @@
                 </div>
                 <h2 class="mt-8 text-2xl font-bold text-gray-900 dark:text-white">No Orders Yet</h2>
                 <p class="mt-3 text-base text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                    No orders have been placed yet. Click the "New Order" button to create your first order.
+                    No client orders have been placed yet. Click the "New Order" button to create your first order.
                 </p>
                 <div class="mt-8 flex items-center justify-center gap-4">
                     <a href="{{ route('admin.orders.create') }}" 

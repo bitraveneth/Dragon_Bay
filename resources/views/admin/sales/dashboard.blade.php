@@ -16,10 +16,10 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                        Sales dashboard
+                        Orders dashboard
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Current month sales performance across invoices, agents and products.
+                        Current month order performance across invoices, clients, and catalog items.
                     </p>
                     <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                         Period: {{ $periodLabel }}
@@ -51,7 +51,7 @@
                 </svg>
             </div>
             <div class="relative">
-                <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Net sales (BDT)</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Net billed value (BDT)</p>
                 <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
                     {{ number_format($netSales, 0) }}
                 </p>
@@ -73,7 +73,7 @@
                     {{ number_format($collected, 0) }}
                 </p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Customer receipts received this month
+                    Client receipts received this month
                 </p>
             </div>
         </div>
@@ -98,11 +98,11 @@
 
     {{-- Grids --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Top agents --}}
+        {{-- Top clients --}}
         <div class="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top agents by net sales</h2>
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top clients by billed value</h2>
             @if($topAgents->isEmpty())
-                <p class="text-sm text-gray-500 dark:text-gray-400">No sales data for this period.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No client billing data for this period.</p>
             @else
                 <ul class="space-y-3">
                     @foreach($topAgents as $agent)
@@ -117,11 +117,11 @@
             @endif
         </div>
 
-        {{-- Top products --}}
+        {{-- Top catalog items --}}
         <div class="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top products</h2>
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top catalog items</h2>
             @if($topProducts->isEmpty())
-                <p class="text-sm text-gray-500 dark:text-gray-400">No product sales for this period.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No catalog activity for this period.</p>
             @else
                 <ul class="space-y-3">
                     @foreach($topProducts as $product)
@@ -141,9 +141,9 @@
             @endif
         </div>
 
-        {{-- Recent orders --}}
+        {{-- Recent client orders --}}
         <div class="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Recent sales orders</h2>
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Recent client orders</h2>
             @if($recentOrders->isEmpty())
                 <p class="text-sm text-gray-500 dark:text-gray-400">No recent orders found.</p>
             @else
@@ -152,7 +152,7 @@
                         <li class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                    #{{ $order->id }} · {{ $order->agent?->name ?? 'Unknown agent' }}
+                                    #{{ $order->id }} · {{ $order->agent?->name ?? 'Unknown client' }}
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
                                     {{ optional($order->delivery_date)->format('d M Y') ?? $order->created_at->format('d M Y') }}

@@ -7,10 +7,10 @@
     <div class="mb-6 flex flex-col gap-5 sm:flex-row sm:justify-between">
         <div class="w-full">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-                Statistics
+                Activity Trends
             </h3>
             <p class="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-                Orders, production, and revenue over the last 7 days.
+                Orders, internal output, and billed value over the last 7 days.
             </p>
         </div>
 
@@ -20,9 +20,9 @@
                 @php
                     $options = [
                         ['value' => 'overview', 'label' => 'Overview'],
-                        ['value' => 'sales', 'label' => 'Sales'],
-                        ['value' => 'production', 'label' => 'Production'],
-                        ['value' => 'revenue', 'label' => 'Revenue'],
+                        ['value' => 'sales', 'label' => 'Orders'],
+                        ['value' => 'production', 'label' => 'Operations'],
+                        ['value' => 'revenue', 'label' => 'Billing'],
                     ];
                 @endphp
 

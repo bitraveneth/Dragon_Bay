@@ -27,8 +27,12 @@ class MenuHelper
             ->get();
 
         if ($groups->isEmpty()) {
-            return self::normalizeSidebarGroups(
-                self::applyRuntimeMenuLinks(self::getFallbackMenu())
+            return self::applyDomainVisibility(
+                self::applyLogisticsTerminology(
+                    self::normalizeSidebarGroups(
+                        self::applyRuntimeMenuLinks(self::getFallbackMenu())
+                    )
+                )
             );
         }
 
@@ -93,9 +97,43 @@ class MenuHelper
             ];
         })->all();
 
-        return self::normalizeSidebarGroups(
-            self::applyRuntimeMenuLinks($menuGroups)
+        return self::applyDomainVisibility(
+            self::applyLogisticsTerminology(
+                self::normalizeSidebarGroups(
+                    self::applyRuntimeMenuLinks($menuGroups)
+                )
+            )
         );
+    }
+
+    public static function isBusinessAreaVisible(string $key): bool
+    {
+        return ! in_array(
+            mb_strtolower(trim($key)),
+            self::hiddenBusinessAreas(),
+            true
+        );
+    }
+
+    public static function isAdminPathHidden(?string $path): bool
+    {
+        if ($path === null) {
+            return false;
+        }
+
+        $path = '/' . ltrim(trim($path), '/');
+
+        if (in_array($path, self::hiddenPaths(), true)) {
+            return true;
+        }
+
+        foreach (self::hiddenPathPrefixes() as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function isValidMenuPath(?string $path): bool
@@ -497,6 +535,229 @@ class MenuHelper
         }
 
         return $groups;
+    }
+
+    protected static function applyDomainVisibility(array $groups): array
+    {
+        return collect($groups)
+            ->reject(function (array $group) {
+                return in_array(
+                    mb_strtolower(trim($group['title'] ?? '')),
+                    self::hiddenGroupTitles(),
+                    true
+                );
+            })
+            ->map(function (array $group) {
+                $group['items'] = collect($group['items'] ?? [])
+                    ->map(function (array $item) {
+                        $item['subItems'] = collect($item['subItems'] ?? [])
+                            ->reject(function (array $subItem) {
+                                return self::isAdminPathHidden($subItem['path'] ?? null);
+                            })
+                            ->values()
+                            ->all();
+
+                        return $item;
+                    })
+                    ->reject(function (array $item) {
+                        $path = trim((string) ($item['path'] ?? ''));
+                        $subItems = $item['subItems'] ?? [];
+
+                        return self::isAdminPathHidden($path)
+                            || ($path === '#' && empty($subItems));
+                    })
+                    ->values()
+                    ->all();
+
+                return $group;
+            })
+            ->filter(fn (array $group) => ! empty($group['items']))
+            ->values()
+            ->all();
+    }
+
+    protected static function applyLogisticsTerminology(array $groups): array
+    {
+        return collect($groups)
+            ->map(function (array $group) {
+                $group['title'] = self::logisticsGroupTitle($group['title'] ?? '');
+
+                $group['items'] = collect($group['items'] ?? [])
+                    ->map(function (array $item) {
+                        $item['name'] = self::logisticsMenuLabel(
+                            $item['name'] ?? '',
+                            $item['path'] ?? null
+                        );
+
+                        $item['subItems'] = collect($item['subItems'] ?? [])
+                            ->map(function (array $subItem) {
+                                $subItem['name'] = self::logisticsMenuLabel(
+                                    $subItem['name'] ?? '',
+                                    $subItem['path'] ?? null
+                                );
+
+                                return $subItem;
+                            })
+                            ->all();
+
+                        return $item;
+                    })
+                    ->all();
+
+                return $group;
+            })
+            ->all();
+    }
+
+    protected static function logisticsGroupTitle(string $title): string
+    {
+        $map = [
+            'control (masters & settings)' => 'Masters & Setup',
+            'inventory (core operations)' => 'Operations & Fulfillment',
+            'sales' => 'Orders & Clients',
+            'accounting' => 'Finance & Billing',
+            'reports & analytics' => 'Insights & Reports',
+        ];
+
+        $normalized = mb_strtolower(trim($title));
+
+        return $map[$normalized] ?? $title;
+    }
+
+    protected static function logisticsMenuLabel(string $name, ?string $path): string
+    {
+        $pathMap = [
+            '/admin/products' => 'Catalog',
+            '/admin/products-price-list' => 'Rate cards',
+            '/admin/agents' => 'Clients',
+            '/admin/commission-rules' => 'Client pricing rules',
+            '/admin/suppliers' => 'Vendors',
+            '/admin/purchase-orders' => 'Vendor purchase orders',
+            '/admin/warehouses' => 'Hubs & warehouses',
+            '/admin/warehouse-locations' => 'Hub locations',
+            '/admin/vehicles' => 'Vehicle registry',
+            '/admin/delivery-routes' => 'Delivery routes',
+            '/admin/settings' => 'Application settings',
+            '/admin/client-guide' => 'Operations manual',
+            '/admin/users' => 'User manager',
+            '/admin/roles' => 'Role manager',
+            '/admin/permissions' => 'Permission manager',
+            '/admin/menu' => 'Navigation manager',
+            '/admin/inventory' => 'Operations dashboard',
+            '/admin/goods-receipts' => 'Inbound receipts',
+            '/admin/stock/movements' => 'Stock movements',
+            '/admin/stock/transfers' => 'Hub transfers',
+            '/admin/deliveries/pod' => 'Dispatch & POD',
+            '/admin/vehicle-load' => 'Load planning',
+            '/admin/deliveries/packing-slips' => 'Dispatch slips',
+            '/admin/orders-picking' => 'Pick lists',
+            '/admin/stock/audit' => 'Stock adjustments',
+            '/admin/sales-dashboard' => 'Orders dashboard',
+            '/admin/orders' => 'Client orders',
+            '/admin/sales-targets' => 'Account targets',
+            '/admin/returns/customer' => 'Client returns',
+            '/admin/commissions' => 'Commission statements',
+            '/admin/settlements' => 'Commission payouts',
+            '/admin/accounting-dashboard' => 'Finance dashboard',
+            '/admin/finance' => 'Client invoices',
+            '/admin/agent-advances' => 'Commission advances',
+            '/admin/bills' => 'Vendor bills',
+            '/admin/expenses' => 'Operational expenses',
+            '/admin/accounts' => 'Ledger accounts',
+            '/admin/finance/reconciliation' => 'Bank reconciliation',
+            '/admin/reports-dashboard' => 'Insights dashboard',
+            '/admin/reports/pl' => 'Profit & loss',
+            '/admin/reports/bs' => 'Balance sheet',
+            '/admin/reports/cashflow' => 'Cashflow',
+            '/admin/reports/vat' => 'Tax report',
+            '/admin/reports/agents' => 'Client performance',
+        ];
+
+        if ($path !== null) {
+            $normalizedPath = '/' . ltrim(trim($path), '/');
+
+            if (isset($pathMap[$normalizedPath])) {
+                return $pathMap[$normalizedPath];
+            }
+        }
+
+        $nameMap = [
+            'products' => 'Catalog',
+            'agents' => 'Clients',
+            'suppliers' => 'Vendors',
+            'warehouses' => 'Hubs & routes',
+            'system settings' => 'System & access',
+            'inventory' => 'Operations',
+            'sales' => 'Orders & clients',
+            'accounting' => 'Finance & billing',
+            'reports' => 'Insights',
+        ];
+
+        $normalizedName = mb_strtolower(trim($name));
+
+        return $nameMap[$normalizedName] ?? $name;
+    }
+
+    protected static function hiddenBusinessAreas(): array
+    {
+        return [
+            'manufacturing',
+            'employees',
+            'crm',
+        ];
+    }
+
+    protected static function hiddenGroupTitles(): array
+    {
+        return [
+            'manufacturing',
+        ];
+    }
+
+    protected static function hiddenPaths(): array
+    {
+        return [
+            '/admin/manufacturing-dashboard',
+            '/admin/materials',
+            '/admin/boms',
+            '/admin/production',
+            '/admin/production/pending-receipts',
+            '/admin/batches',
+            '/admin/inventory/materials',
+            '/admin/employees',
+            '/admin/contracts',
+            '/admin/allowances',
+            '/admin/equipment',
+            '/admin/leaves',
+            '/admin/locations',
+            '/admin/badges',
+            '/admin/campaigns',
+            '/admin/gifts',
+            '/admin/reports/production',
+            '/admin/reports/payroll',
+            '/admin/salary-distributions',
+        ];
+    }
+
+    protected static function hiddenPathPrefixes(): array
+    {
+        return [
+            '/admin/employees',
+            '/admin/contracts',
+            '/admin/allowances',
+            '/admin/equipment',
+            '/admin/leaves',
+            '/admin/locations',
+            '/admin/badges',
+            '/admin/materials',
+            '/admin/boms',
+            '/admin/production',
+            '/admin/batches',
+            '/admin/campaigns',
+            '/admin/gifts',
+            '/admin/gifts',
+            '/admin/salary-distributions',
+        ];
     }
 
     public static function getIconSvg(string $key): string

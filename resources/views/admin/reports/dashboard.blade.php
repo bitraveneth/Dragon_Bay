@@ -18,13 +18,13 @@
         <div class="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div class="max-w-3xl">
                 <div class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-300">
-                    Reports Command Center
+                    Insights Command Center
                 </div>
                 <h1 class="mt-4 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-4xl">
-                    Reports Dashboard
+                    Insights Dashboard
                 </h1>
                 <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400 md:text-base">
-                    Track year-to-date revenue, collections, liabilities, production output, and commercial reach from one place.
+                    Track year-to-date billed value, collections, liabilities, operational output, and client reach from one place.
                 </p>
             </div>
 
@@ -42,11 +42,11 @@
                         <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{{ number_format($collectionRate, 1) }}%</div>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-white/80 p-4 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-950/60">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Active agents</div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Active clients</div>
                         <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{{ number_format($activeAgents) }}</div>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-white/80 p-4 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-950/60">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Approved output</div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Operational output</div>
                         <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{{ number_format($productionQty) }}</div>
                     </div>
                 </div>
@@ -59,7 +59,7 @@
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Commercial snapshot</p>
-                    <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">Revenue and receivables</h2>
+                    <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">Billing and receivables</h2>
                 </div>
                 <div class="rounded-2xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
                     Year-to-date
@@ -68,9 +68,9 @@
 
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
                 <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-gray-800 dark:bg-gray-950/60">
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Revenue</div>
+                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Billed value</div>
                     <div class="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{{ $currencyCode }} {{ number_format($grossRevenue, 0) }}</div>
-                    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">Net invoiced revenue recorded this year.</p>
+                    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">Net client billing recorded this year.</p>
                 </article>
 
                 <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-gray-800 dark:bg-gray-950/60">
@@ -108,13 +108,13 @@
                     <div class="mt-3 text-xl font-semibold text-gray-900 dark:text-white">
                         {{ $grossRevenue > 0 ? number_format(($outstanding / $grossRevenue) * 100, 1) : '0.0' }}%
                     </div>
-                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Share of revenue still open as receivable.</p>
+                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Share of billed value still open as receivable.</p>
                 </div>
 
                 <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">Commercial footprint</div>
-                    <div class="mt-3 text-xl font-semibold text-gray-900 dark:text-white">{{ number_format($activeAgents) }} active partners</div>
-                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Current selling network feeding orders into the system.</p>
+                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">Client footprint</div>
+                    <div class="mt-3 text-xl font-semibold text-gray-900 dark:text-white">{{ number_format($activeAgents) }} active accounts</div>
+                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Current client network feeding orders into the system.</p>
                 </div>
             </div>
         </div>
@@ -129,7 +129,7 @@
                     {{ $currencyCode }} {{ number_format($netProfitEstimate, 0) }}
                 </div>
                 <p class="mt-3 text-sm leading-6 text-white/65">
-                    Approximate profit after COGS, commissions, operating expenses, and payroll, based on year-to-date revenue.
+                    Approximate profit after COGS, commissions, operating expenses, and payroll, based on year-to-date billed value.
                 </p>
             </div>
 
@@ -209,13 +209,13 @@
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Operations</p>
-                    <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">Factory and field activity</h2>
+                    <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">Warehouse and field activity</h2>
                 </div>
             </div>
 
             <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-gray-800 dark:bg-gray-950/60">
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Approved output</div>
+                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Operational output</div>
                     <div class="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{{ number_format($productionQty, 0) }}</div>
                     <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">Total quantity from approved production runs in the current year.</p>
                 </article>

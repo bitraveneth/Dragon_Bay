@@ -13,65 +13,65 @@
 @php
     $cards = [
         [
-            'label' => 'Agents',
+            'label' => 'Clients',
             'value' => number_format($agentCount ?? 0),
-            'caption' => 'Active selling partners',
+            'caption' => 'Active client accounts',
             'tone' => 'success',
             'icon' => 'agent',
             'href' => route('admin.agents.index'),
         ],
         [
-            'label' => 'Sales Orders',
+            'label' => 'Client Orders',
             'value' => number_format($totalOrderCount ?? 0),
-            'caption' => 'Customer sales only',
+            'caption' => 'Active booking and sales orders',
             'tone' => 'brand',
             'icon' => 'orders',
-            'href' => route('admin.orders.index', ['type' => 'sales']),
+            'href' => route('admin.orders.index'),
         ],
         [
             'label' => 'Returns',
             'value' => number_format($returnOrderCount ?? 0),
-            'caption' => 'Customer return orders',
+            'caption' => 'Client return orders',
             'tone' => 'error',
             'icon' => 'returns',
             'href' => route('admin.orders.index', ['type' => 'return']),
         ],
         [
-            'label' => 'Revenue',
+            'label' => 'Billed Value',
             'value' => $currencyCode . ' ' . number_format((float) ($monthlyRevenue ?? 0), 0),
-            'caption' => 'Selected month invoiced sales',
+            'caption' => 'Current month client invoicing',
             'tone' => 'violet',
             'icon' => 'revenue',
             'href' => route('admin.finance.index'),
         ],
         [
-            'label' => 'Receivables',
+            'label' => 'Open Receivables',
             'value' => $currencyCode . ' ' . number_format((float) ($outstandingReceivables ?? 0), 0),
-            'caption' => 'Outstanding invoice balance',
+            'caption' => 'Outstanding client invoice balance',
             'tone' => 'warning',
             'icon' => 'receivables',
             'href' => route('admin.finance.index'),
         ],
         [
-            'label' => 'Pending Deliveries',
+            'label' => 'Pending Dispatches',
             'value' => number_format($pendingDeliveryCount ?? 0),
-            'caption' => 'Confirmed to dispatched orders',
+            'caption' => 'Confirmed orders waiting on delivery flow',
             'tone' => 'sky',
             'icon' => 'delivery',
             'href' => route('admin.deliveries.index'),
         ],
         [
-            'label' => 'Today Production',
+            'label' => 'Operational Output',
             'value' => number_format((float) ($todayProductionQty ?? 0), 0),
-            'caption' => 'Approved quantity today',
+            'caption' => 'Today tracked through internal operations',
             'tone' => 'amber',
             'icon' => 'production',
-            'href' => route('admin.production.index'),
+            'href' => route('admin.inventory.index'),
         ],
         [
             'label' => 'Low Stock Alerts',
             'value' => number_format($lowStockAlertCount ?? 0),
-            'caption' => 'Sellable items at or below 10',
+            'caption' => 'Tracked catalog items at or below threshold',
             'tone' => 'rose',
             'icon' => 'alert',
             'href' => route('admin.inventory.index'),
@@ -136,7 +136,7 @@
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Operations Snapshot</p>
             <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">Today at a Glance</h2>
         </div>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Core sales, finance, delivery, and stock signals in one place.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Core client, finance, dispatch, and stock signals in one place.</p>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

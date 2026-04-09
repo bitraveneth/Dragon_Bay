@@ -10,14 +10,14 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-                Monthly Sales
+                Monthly Orders
             </h3>
             <p class="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-                Current month: {{ now()->format('F Y') }}
+                Order volume by month through {{ now()->format('F Y') }}
             </p>
         </div>
         <form method="GET" action="{{ route('admin.dashboard') }}" data-dashboard-sales-form>
-            <label for="monthly-sales-range" class="sr-only">Filter monthly sales range</label>
+            <label for="monthly-sales-range" class="sr-only">Filter monthly order range</label>
             <select
                 id="monthly-sales-range"
                 name="sales_range"

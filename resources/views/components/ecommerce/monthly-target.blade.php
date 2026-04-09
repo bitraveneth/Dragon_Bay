@@ -1,7 +1,7 @@
 @props([
     'currencyCode' => 'BDT',
     'periodLabel' => '',
-    'targetBasis' => 'No monthly sales target configured',
+    'targetBasis' => 'No monthly order target configured',
     'monthlySalesTarget' => 0,
     'monthlyAchieved' => 0,
     'todayAchieved' => 0,
@@ -46,7 +46,7 @@
 
         <div class="-mt-1 text-center">
             <span class="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">
-                Monthly Sales Target
+                Monthly Order Target
             </span>
             <p class="mt-3 text-lg font-semibold text-gray-800 dark:text-white/90">
                 {{ $currencyCode }} {{ number_format($targetValue, 2) }}

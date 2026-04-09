@@ -93,7 +93,7 @@ Route::get('/home', function () {
     return redirect()->route('admin.dashboard');
 })->middleware('auth')->name('home');
 
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
     Route::view('help', 'admin.help')->name('help');
     Route::view('client-guide', 'admin.client-guide')->name('client-guide');
