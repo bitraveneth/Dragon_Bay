@@ -11,6 +11,10 @@ class BlockHiddenModules
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (! config('app.hide_legacy_modules', false)) {
+            return $next($request);
+        }
+
         if (MenuHelper::isAdminPathHidden('/' . ltrim($request->path(), '/'))) {
             abort(404);
         }

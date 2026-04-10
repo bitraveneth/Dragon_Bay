@@ -700,6 +700,10 @@ class MenuHelper
 
     protected static function hiddenBusinessAreas(): array
     {
+        if (! self::legacyModuleHidingEnabled()) {
+            return [];
+        }
+
         return [
             'manufacturing',
             'employees',
@@ -709,6 +713,10 @@ class MenuHelper
 
     protected static function hiddenGroupTitles(): array
     {
+        if (! self::legacyModuleHidingEnabled()) {
+            return [];
+        }
+
         return [
             'manufacturing',
         ];
@@ -716,6 +724,10 @@ class MenuHelper
 
     protected static function hiddenPaths(): array
     {
+        if (! self::legacyModuleHidingEnabled()) {
+            return [];
+        }
+
         return [
             '/admin/manufacturing-dashboard',
             '/admin/materials',
@@ -741,6 +753,10 @@ class MenuHelper
 
     protected static function hiddenPathPrefixes(): array
     {
+        if (! self::legacyModuleHidingEnabled()) {
+            return [];
+        }
+
         return [
             '/admin/employees',
             '/admin/contracts',
@@ -758,6 +774,11 @@ class MenuHelper
             '/admin/gifts',
             '/admin/salary-distributions',
         ];
+    }
+
+    protected static function legacyModuleHidingEnabled(): bool
+    {
+        return (bool) config('app.hide_legacy_modules', false);
     }
 
     public static function getIconSvg(string $key): string

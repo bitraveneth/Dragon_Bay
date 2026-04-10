@@ -86,6 +86,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Legacy Module Visibility
+    |--------------------------------------------------------------------------
+    |
+    | Some client deployments hide non-logistics modules at the UI and route
+    | level. Keep the origin codebase fully visible by default and allow
+    | deployments to opt in via environment configuration.
+    |
+    */
+
+    'hide_legacy_modules' => (bool) env('APP_HIDE_LEGACY_MODULES', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
