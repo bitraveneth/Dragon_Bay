@@ -10,6 +10,7 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
+        'client_id',
         'agent_id',
         'order_type',
         'agent_reference',
@@ -19,6 +20,7 @@ class Order extends Model
         'delivery_address',
         'status',
         'total',
+        'estimated_price',
         'commission_total',
         'notes',
         'is_credit_used',
@@ -28,18 +30,21 @@ class Order extends Model
     protected $casts = [
         'delivery_date' => 'date',
         'total' => 'decimal:2',
+        'estimated_price' => 'decimal:2',
         'commission_total' => 'decimal:2',
         'is_credit_used' => 'boolean',
     ];
 
+    /** The cargo client who placed this order. */
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /** The internal agent (salesperson) assigned to this order via the client. */
     public function agent()
     {
         return $this->belongsTo(Agent::class);
-    }
-
-    public function client()
-    {
-        return $this->belongsTo(Client::class, 'agent_id');
     }
 
     public function items()

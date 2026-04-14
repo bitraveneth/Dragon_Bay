@@ -96,6 +96,7 @@ class AgentController extends Controller
         $agent = $this->requireAgent($request);
 
         $data = $request->validate([
+            'client_id' => 'required|exists:clients,id',
             'order_type' => 'required|in:regular,bulk,sample,return',
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -107,6 +108,7 @@ class AgentController extends Controller
 
         $order = DB::transaction(function () use ($agent, $data) {
             $order = Order::create([
+                'client_id' => $data['client_id'],
                 'agent_id' => $agent->id,
                 'order_type' => $data['order_type'],
                 'delivery_date' => $data['delivery_date'] ?? null,

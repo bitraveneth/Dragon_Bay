@@ -21,13 +21,14 @@ class EmployeeUsersSeeder extends Seeder
             return;
         }
         $seedPassword = $seedPassword !== '' ? $seedPassword : 'password';
+        $this->migrateLegacyEmails();
 
         // Warehouse Manager login
         $warehouseManager = Employee::where('name', 'Warehouse Manager')->first();
 
         if ($warehouseManager) {
             $user = User::updateOrCreate(
-                ['email' => 'warehouse@saferpv.local'],
+                ['email' => 'warehouse@dragonbay.com'],
                 [
                     'name'        => 'Demo Warehouse Manager',
                     'password'    => Hash::make($seedPassword),
@@ -43,7 +44,7 @@ class EmployeeUsersSeeder extends Seeder
 
         if ($productionManager) {
             $user = User::updateOrCreate(
-                ['email' => 'production@saferpv.local'],
+                ['email' => 'production@dragonbay.com'],
                 [
                     'name'        => 'Demo Production Manager',
                     'password'    => Hash::make($seedPassword),
@@ -59,7 +60,7 @@ class EmployeeUsersSeeder extends Seeder
 
         if ($salesRep01) {
             $user = User::updateOrCreate(
-                ['email' => 'employee@saferpv.local'],
+                ['email' => 'employee@dragonbay.com'],
                 [
                     'name'        => 'Demo Sales Rep',
                     'password'    => Hash::make($seedPassword),
@@ -75,7 +76,7 @@ class EmployeeUsersSeeder extends Seeder
 
         if ($salesManager) {
             $user = User::updateOrCreate(
-                ['email' => 'sales.manager@saferpv.local'],
+                ['email' => 'sales.manager@dragonbay.com'],
                 [
                     'name'        => 'Demo Sales Manager',
                     'password'    => Hash::make($seedPassword),
@@ -91,7 +92,7 @@ class EmployeeUsersSeeder extends Seeder
 
         if ($qcOfficer) {
             $user = User::updateOrCreate(
-                ['email' => 'qc@saferpv.local'],
+                ['email' => 'qc@dragonbay.com'],
                 [
                     'name'        => 'Demo QC Officer',
                     'password'    => Hash::make($seedPassword),
@@ -104,7 +105,7 @@ class EmployeeUsersSeeder extends Seeder
 
         // Real-world additional office roles (not necessarily linked to employee profiles)
         $purchase = User::updateOrCreate(
-            ['email' => 'purchase@saferpv.local'],
+            ['email' => 'purchase@dragonbay.com'],
             [
                 'name'     => 'Demo Purchase Executive',
                 'password' => Hash::make($seedPassword),
@@ -114,7 +115,7 @@ class EmployeeUsersSeeder extends Seeder
         $this->syncPrimaryRole($purchase);
 
         $accounts = User::updateOrCreate(
-            ['email' => 'accounts@saferpv.local'],
+            ['email' => 'accounts@dragonbay.com'],
             [
                 'name'     => 'Demo Accounts Officer',
                 'password' => Hash::make($seedPassword),
@@ -124,7 +125,7 @@ class EmployeeUsersSeeder extends Seeder
         $this->syncPrimaryRole($accounts);
 
         // Remove old legacy test account if it exists.
-        User::where('email', 'legacy.employee@saferpv.local')->delete();
+        User::where('email', 'legacy.employee@dragonbay.com')->delete();
     }
 
     protected function syncPrimaryRole(User $user): void
@@ -137,5 +138,25 @@ class EmployeeUsersSeeder extends Seeder
             ['user_id' => $user->id, 'role_key' => $user->role],
             ['updated_at' => now(), 'created_at' => now()]
         );
+    }
+
+    protected function migrateLegacyEmails(): void
+    {
+        $emailMap = [
+            'warehouse@saferpv.local' => 'warehouse@dragonbay.com',
+            'production@saferpv.local' => 'production@dragonbay.com',
+            'employee@saferpv.local' => 'employee@dragonbay.com',
+            'sales.manager@saferpv.local' => 'sales.manager@dragonbay.com',
+            'qc@saferpv.local' => 'qc@dragonbay.com',
+            'purchase@saferpv.local' => 'purchase@dragonbay.com',
+            'accounts@saferpv.local' => 'accounts@dragonbay.com',
+            'legacy.employee@saferpv.local' => 'legacy.employee@dragonbay.com',
+        ];
+
+        foreach ($emailMap as $legacy => $current) {
+            if (User::where('email', $legacy)->exists() && ! User::where('email', $current)->exists()) {
+                User::where('email', $legacy)->update(['email' => $current]);
+            }
+        }
     }
 }

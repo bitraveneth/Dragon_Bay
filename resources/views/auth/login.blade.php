@@ -122,68 +122,76 @@
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="super@saferpv.local"
+                                data-email="client@dragonbay.com"
                                 data-password="password">
-                            super@saferpv.local
+                            client@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="admin@saferpv.local"
+                                data-email="super@dragonbay.com"
                                 data-password="password">
-                            admin@saferpv.local
+                            super@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="warehouse@saferpv.local"
+                                data-email="admin@dragonbay.com"
                                 data-password="password">
-                            warehouse@saferpv.local
+                            admin@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="production@saferpv.local"
+                                data-email="warehouse@dragonbay.com"
                                 data-password="password">
-                            production@saferpv.local
+                            warehouse@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="employee@saferpv.local"
+                                data-email="production@dragonbay.com"
                                 data-password="password">
-                            employee@saferpv.local
+                            production@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="sales.manager@saferpv.local"
+                                data-email="employee@dragonbay.com"
                                 data-password="password">
-                            sales.manager@saferpv.local
+                            employee@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="purchase@saferpv.local"
+                                data-email="sales.manager@dragonbay.com"
                                 data-password="password">
-                            purchase@saferpv.local
+                            sales.manager@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="accounts@saferpv.local"
+                                data-email="purchase@dragonbay.com"
                                 data-password="password">
-                            accounts@saferpv.local
+                            purchase@dragonbay.com
                         </button>
                         <button type="button"
                                 class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
                                 data-demo-login
-                                data-email="qc@saferpv.local"
+                                data-email="accounts@dragonbay.com"
                                 data-password="password">
-                            qc@saferpv.local
+                            accounts@dragonbay.com
+                        </button>
+                        <button type="button"
+                                class="inline-flex items-center rounded-full bg-gray-200 px-3 py-1 font-medium text-gray-800 hover:bg-brand-100 hover:text-brand-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-brand-500/20 dark:hover:text-brand-300"
+                                data-demo-login
+                                data-email="qc@dragonbay.com"
+                                data-password="password">
+                            qc@dragonbay.com
                         </button>
                     </div>
                     <p class="mt-2 text-center text-theme-xs text-gray-500 dark:text-gray-400">
+                        Client-linked demo users open the portal automatically.<br>
                         Default password: <span class="font-mono">password</span>
                     </p>
                 </div>

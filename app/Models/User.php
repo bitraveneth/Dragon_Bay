@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'role',
         'agent_id',
+        'client_id',
         'employee_id',
     ];
 
@@ -47,9 +48,16 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    /** Internal agent (salesperson) linked to this user account. */
     public function agent()
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    /** Client account linked to this portal user. */
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function employee()

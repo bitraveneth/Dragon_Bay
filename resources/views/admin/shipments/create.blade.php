@@ -26,9 +26,19 @@
                 </select>
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Client</label>
-                <select name="agent_id" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Client <span class="text-red-500">*</span></label>
+                <select name="client_id" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                     <option value="">Select client</option>
+                    @foreach($clients as $client)
+                        <option value="{{ $client->id }}" @selected(old('client_id') == $client->id)>{{ $client->name }}{{ $client->company_name ? ' — ' . $client->company_name : '' }}</option>
+                    @endforeach
+                </select>
+                @error('client_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Internal Agent (Salesperson)</label>
+                <select name="agent_id" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    <option value="">None</option>
                     @foreach($agents as $agent)
                         <option value="{{ $agent->id }}" @selected(old('agent_id') == $agent->id)>{{ $agent->name }}</option>
                     @endforeach
@@ -39,7 +49,7 @@
                 <select name="order_id" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                     <option value="">No order link</option>
                     @foreach($orders as $order)
-                        <option value="{{ $order->id }}" @selected(old('order_id') == $order->id)>#{{ $order->id }} - {{ $order->agent?->name ?? 'Unknown' }}</option>
+                        <option value="{{ $order->id }}" @selected(old('order_id') == $order->id)>#{{ $order->id }} - {{ $order->client?->name ?? 'Unknown' }}</option>
                     @endforeach
                 </select>
             </div>

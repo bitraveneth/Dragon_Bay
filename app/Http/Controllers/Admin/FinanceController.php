@@ -162,10 +162,11 @@ class FinanceController extends Controller
             'status' => 'issued',
         ];
 
-        $agent = $order->agent;
-        if ($agent && $agent->withholding_rate > 0) {
+        // Withholding rate comes from the client profile; fall back to agent if client not set
+        $withholdingRate = (float) ($order->client?->withholding_rate ?? $order->agent?->withholding_rate ?? 0);
+        if ($withholdingRate > 0) {
             $grossTotal = $invoiceData['net_total'] + $invoiceData['vat_amount'];
-            $invoiceData['withholding'] = round($grossTotal * ((float) $agent->withholding_rate / 100), 2);
+            $invoiceData['withholding'] = round($grossTotal * ($withholdingRate / 100), 2);
         }
 
         $invoice = null;
@@ -514,8 +515,11 @@ class FinanceController extends Controller
 
     protected function applyAvailableAgentAdvances(Invoice $invoice): void
     {
-        $invoice->loadMissing('order.agent');
-        $agent = $invoice->order?->agent;
+        $invoice->loadMissing(['order.agent', 'order.client']);
+        // Advances are tracked against the internal agent (salesperson)
+        // Try order->agent directly; fall back to the client's assigned agent
+        $agent = $invoice->order?->agent
+            ?? ($invoice->order?->client?->agent ?? null);
 
         if (! $agent) {
             return;

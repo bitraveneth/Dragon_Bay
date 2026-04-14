@@ -20,10 +20,11 @@ class AdminUsersSeeder extends Seeder
             return;
         }
         $seedPassword = $seedPassword !== '' ? $seedPassword : 'password';
+        $this->migrateLegacyEmails();
 
         // Primary super admin – full control over roles & permissions
         $superAdmin = User::updateOrCreate(
-            ['email' => 'super@saferpv.local'],
+            ['email' => 'super@dragonbay.com'],
             [
                 'name'     => 'Super Admin',
                 'password' => Hash::make($seedPassword),
@@ -34,7 +35,7 @@ class AdminUsersSeeder extends Seeder
 
         // Normal admin account for day-to-day configuration
         $admin = User::updateOrCreate(
-            ['email' => 'admin@saferpv.local'],
+            ['email' => 'admin@dragonbay.com'],
             [
                 'name'     => 'Admin User',
                 'password' => Hash::make($seedPassword),
@@ -54,5 +55,19 @@ class AdminUsersSeeder extends Seeder
             ['user_id' => $user->id, 'role_key' => $user->role],
             ['updated_at' => now(), 'created_at' => now()]
         );
+    }
+
+    protected function migrateLegacyEmails(): void
+    {
+        $emailMap = [
+            'super@saferpv.local' => 'super@dragonbay.com',
+            'admin@saferpv.local' => 'admin@dragonbay.com',
+        ];
+
+        foreach ($emailMap as $legacy => $current) {
+            if (User::where('email', $legacy)->exists() && ! User::where('email', $current)->exists()) {
+                User::where('email', $legacy)->update(['email' => $current]);
+            }
+        }
     }
 }

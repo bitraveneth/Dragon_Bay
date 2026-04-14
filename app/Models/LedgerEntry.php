@@ -9,6 +9,17 @@ class LedgerEntry extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new \LogicException('LedgerEntry records are immutable. Create a correcting entry instead.');
+        });
+
+        static::deleting(function () {
+            throw new \LogicException('LedgerEntry records cannot be deleted. Create a correcting entry instead.');
+        });
+    }
+
     protected $fillable = [
         'account',
         'description',

@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
  * Delegates to:
  * - AdminUsersSeeder
  * - EmployeeUsersSeeder
- * - (later) AgentUsersSeeder
+ * - ClientUsersSeeder
  */
 class UsersModuleSeeder extends Seeder
 {
@@ -19,7 +19,7 @@ class UsersModuleSeeder extends Seeder
         $this->call([
             AdminUsersSeeder::class,
             EmployeeUsersSeeder::class,
-            // AgentUsersSeeder::class, // enable when agents are seeded
+            ClientUsersSeeder::class,
         ]);
     }
 }

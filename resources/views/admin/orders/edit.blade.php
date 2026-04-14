@@ -34,7 +34,7 @@
                         @endif
                     </div>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {{ $order->agent->name }} · {{ $isReturnOrder ? 'Return' : ucfirst($order->order_type) }} · {{ $order->agent_reference ?? 'No reference' }}
+                        {{ $order->client?->name ?? $order->agent?->name ?? '—' }} · {{ $isReturnOrder ? 'Return' : ucfirst($order->order_type) }} · {{ $order->agent_reference ?? 'No reference' }}
                     </p>
                 </div>
             </div>
@@ -164,9 +164,9 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $order->agent->name }}</p>
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $order->client?->name ?? $order->agent?->name ?? '—' }}</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $order->agent->zone ?? '—' }} · {{ $order->agent->area ?? '—' }}
+                                        {{ $order->client?->company_name ?? '—' }}
                                     </p>
                                 </div>
                             </div>

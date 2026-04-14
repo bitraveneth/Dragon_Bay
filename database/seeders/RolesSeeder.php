@@ -48,6 +48,7 @@ class RolesSeeder extends Seeder
             ['key' => 'delivery_coordinator', 'label' => 'Delivery coordinator', 'is_system' => true],
             ['key' => 'accounts_officer', 'label' => 'Accounts officer', 'is_system' => true],
             ['key' => 'qc_officer', 'label' => 'QC officer', 'is_system' => true],
+            ['key' => 'client', 'label' => 'Client', 'is_system' => true],
         ];
 
         foreach ($definitions as $role) {

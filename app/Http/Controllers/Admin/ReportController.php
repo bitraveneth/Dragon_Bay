@@ -17,6 +17,7 @@ use App\Models\EmployeeAllowance;
 use App\Models\BillOfMaterial;
 use App\Models\SalaryDistribution;
 use App\Models\PurchaseBill;
+use App\Models\Client;
 use App\Models\Shipment;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
@@ -724,5 +725,49 @@ class ReportController extends Controller
         ])->sum('cost');
 
         return $expenses + $giftExpenses + $campaignExpenses;
+    }
+
+    public function clientOutstanding(Request $request)
+    {
+        $agentId = $request->query('agent_id');
+
+        $clients = Client::with('agent')
+            ->when($agentId, fn ($q) => $q->where('agent_id', $agentId))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $agents = \App\Models\Agent::orderBy('name')->get();
+
+        $rows = $clients->map(function (Client $client) {
+            $invoices = Invoice::whereHas('order', fn ($q) => $q->where('client_id', $client->id))
+                ->orWhereHas('shipment', fn ($q) => $q->where('client_id', $client->id))
+                ->with(['receipts', 'creditNotes', 'advanceApplications'])
+                ->where(function ($q) {
+                    $q->whereNull('invoice_type')->orWhere('invoice_type', '!=', 'proforma');
+                })
+                ->get();
+
+            $totalInvoiced  = $invoices->sum(fn (Invoice $i) => (float) ($i->cash_total ?? 0));
+            $totalPaid      = $invoices->sum(fn (Invoice $i) => (float) $i->receipts->sum('amount'));
+            $totalOutstanding = $invoices->sum(fn (Invoice $i) => (float) $i->outstanding);
+            $overdueCount   = $invoices->filter(fn (Invoice $i) => (float) $i->outstanding > 0)->count();
+
+            return [
+                'client'         => $client,
+                'total_invoiced' => $totalInvoiced,
+                'total_paid'     => $totalPaid,
+                'outstanding'    => $totalOutstanding,
+                'overdue_count'  => $overdueCount,
+                'credit_limit'   => (float) $client->credit_limit,
+                'credit_used_pct'=> $client->credit_limit > 0
+                    ? min(round(($totalOutstanding / $client->credit_limit) * 100, 1), 999)
+                    : null,
+            ];
+        })->filter(fn ($row) => $row['total_invoiced'] > 0 || $request->boolean('show_all'));
+
+        $grandOutstanding = $rows->sum('outstanding');
+
+        return view('admin.reports.client-outstanding', compact('rows', 'agents', 'agentId', 'grandOutstanding'));
     }
 }

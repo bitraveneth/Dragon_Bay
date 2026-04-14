@@ -174,15 +174,15 @@
                                     <div class="flex items-center gap-2">
                                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/30">
                                             <span class="text-xs font-medium text-brand-700 dark:text-brand-400">
-                                                {{ substr($order->agent->name ?? '?', 0, 1) }}
+                                                {{ substr($order->client?->name ?? $order->agent?->name ?? '?', 0, 1) }}
                                             </span>
                                         </div>
                                         <div>
                                             <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                                {{ $order->agent->name }}
+                                                {{ $order->client?->name ?? $order->agent?->name ?? '—' }}
                                             </p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $order->agent->zone ?? '—' }}
+                                                {{ $order->client?->company_name ?? '—' }}
                                             </p>
                                         </div>
                                     </div>

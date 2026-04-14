@@ -10,6 +10,7 @@ class Agent extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'name',
         'email',
         'phone',
@@ -35,6 +36,18 @@ class Agent extends Model
         'longitude' => 'float',
         'withholding_rate' => 'decimal:2',
     ];
+
+    /** The system user account for this internal agent. */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /** Clients assigned to this agent (salesperson). */
+    public function clients()
+    {
+        return $this->hasMany(Client::class);
+    }
 
     public function parent()
     {

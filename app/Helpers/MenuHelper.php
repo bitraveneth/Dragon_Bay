@@ -235,6 +235,7 @@ class MenuHelper
                         'path' => '#',
                         'permission' => 'control.agents',
                         'subItems' => [
+                            ['name' => 'Clients', 'path' => '/admin/clients', 'permission' => 'control.agents'],
                             ['name' => 'Agents', 'path' => '/admin/agents', 'permission' => 'control.agents'],
                             ['name' => 'Commission rules', 'path' => '/admin/commission-rules', 'permission' => 'control.agents'],
                         ],
@@ -396,6 +397,7 @@ class MenuHelper
                             ['name' => 'Shipment profitability', 'path' => '/admin/reports/shipments/profitability', 'permission' => 'reports.view'],
                             ['name' => 'KG vs CBM usage', 'path' => '/admin/reports/shipments/weight-usage', 'permission' => 'reports.view'],
                             ['name' => 'Air vs Sea performance', 'path' => '/admin/reports/shipments/mode-performance', 'permission' => 'reports.view'],
+                            ['name' => 'Client outstanding', 'path' => '/admin/reports/clients/outstanding', 'permission' => 'reports.view'],
                             ['name' => 'Production reports', 'path' => '/admin/reports/production', 'permission' => 'reports.view'],
                             ['name' => 'Payroll summary', 'path' => '/admin/reports/payroll', 'permission' => 'reports.view'],
                         ],

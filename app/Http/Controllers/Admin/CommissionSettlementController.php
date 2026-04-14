@@ -71,7 +71,7 @@ class CommissionSettlementController extends Controller
                 'period_end' => $to,
             ]);
 
-            if ($settlement->exists && $settlement->status !== 'open') {
+            if ($settlement->exists && ! in_array($settlement->status, ['open', 'expected'], true)) {
                 $processedAgentIds[] = $agent->id;
                 continue;
             }
@@ -101,12 +101,13 @@ class CommissionSettlementController extends Controller
     public function updateStatus(Request $request, AgentCommissionSettlement $settlement)
     {
         $data = $request->validate([
-            'status' => 'required|in:open,approved,paid',
+            'status' => 'required|in:open,expected,approved,paid',
             'payment_method' => 'nullable|in:cash,bkash,bank_transfer,cheque',
             'payment_reference' => 'nullable|string|max:255',
         ]);
 
-        $workflow = ['open' => 0, 'approved' => 1, 'paid' => 2];
+        // open → expected → approved (payable) → paid
+        $workflow = ['open' => 0, 'expected' => 1, 'approved' => 2, 'paid' => 3];
         $currentState = $workflow[$settlement->status] ?? 0;
         $targetState = $workflow[$data['status']] ?? 0;
 
@@ -117,7 +118,7 @@ class CommissionSettlementController extends Controller
         }
 
         DB::transaction(function () use ($settlement, $data) {
-            if (in_array($data['status'], ['approved', 'paid'], true)) {
+            if (in_array($data['status'], ['expected', 'approved', 'paid'], true)) {
                 $this->ensureAccrued($settlement);
             }
 

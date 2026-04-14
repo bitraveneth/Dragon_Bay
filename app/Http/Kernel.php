@@ -66,5 +66,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'perm' => \App\Http\Middleware\CheckPermission::class,
         'module.visibility' => \App\Http\Middleware\BlockHiddenModules::class,
+        'client.portal' => \App\Http\Middleware\EnsureClientPortalUser::class,
     ];
 }

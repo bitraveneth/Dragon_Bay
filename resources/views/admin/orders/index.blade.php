@@ -203,15 +203,15 @@
                                     <div class="flex items-center gap-3">
                                         <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
                                             <span class="text-xs font-semibold text-brand-700 dark:text-brand-400">
-                                                {{ substr($order->agent->name ?? '?', 0, 1) }}
+                                                {{ substr($order->client?->name ?? $order->agent?->name ?? '?', 0, 1) }}
                                             </span>
                                         </div>
                                         <div>
                                             <a href="{{ route('admin.orders.show', $order) }}" class="text-sm font-semibold text-gray-900 hover:text-brand-600 dark:text-white dark:hover:text-brand-400 transition-colors">
-                                                {{ $order->agent->name }}
+                                                {{ $order->client?->name ?? $order->agent?->name ?? '—' }}
                                             </a>
                                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                #{{ $order->id }} · {{ $order->agent->zone ?? '—' }}
+                                                #{{ $order->id }} · {{ $order->client?->company_name ?? '—' }}
                                             </p>
                                         </div>
                                     </div>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AgentController;
+use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\BatchController;
 use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\FinanceController;
@@ -60,6 +61,7 @@ use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\AgentAdvanceController;
 use App\Http\Controllers\Admin\ShipmentController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\ClientPortalController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
@@ -282,19 +284,19 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::post('employees/{employee}/badges/grant', [BadgeController::class, 'grant'])->middleware('perm:control.employees')->name('employees.badges.grant');
 
     Route::get('agents', [AgentController::class, 'index'])->middleware('perm:control.agents')->name('agents.index');
-    Route::get('clients', [AgentController::class, 'index'])->middleware('perm:control.agents')->name('clients.index');
+    Route::get('clients', [ClientController::class, 'index'])->middleware('perm:control.agents')->name('clients.index');
     Route::get('agents/create', [AgentController::class, 'create'])->middleware('perm:control.agents')->name('agents.create');
-    Route::get('clients/create', [AgentController::class, 'create'])->middleware('perm:control.agents')->name('clients.create');
+    Route::get('clients/create', [ClientController::class, 'create'])->middleware('perm:control.agents')->name('clients.create');
     Route::post('agents', [AgentController::class, 'store'])->middleware('perm:control.agents')->name('agents.store');
-    Route::post('clients', [AgentController::class, 'store'])->middleware('perm:control.agents')->name('clients.store');
+    Route::post('clients', [ClientController::class, 'store'])->middleware('perm:control.agents')->name('clients.store');
     Route::get('agents/{agent}', [AgentController::class, 'show'])->middleware('perm:control.agents')->name('agents.show');
-    Route::get('clients/{agent}', [AgentController::class, 'show'])->middleware('perm:control.agents')->name('clients.show');
+    Route::get('clients/{client}', [ClientController::class, 'show'])->middleware('perm:control.agents')->name('clients.show');
     Route::get('agents/{agent}/edit', [AgentController::class, 'edit'])->middleware('perm:control.agents')->name('agents.edit');
-    Route::get('clients/{agent}/edit', [AgentController::class, 'edit'])->middleware('perm:control.agents')->name('clients.edit');
+    Route::get('clients/{client}/edit', [ClientController::class, 'edit'])->middleware('perm:control.agents')->name('clients.edit');
     Route::patch('agents/{agent}', [AgentController::class, 'update'])->middleware('perm:control.agents')->name('agents.update');
-    Route::patch('clients/{agent}', [AgentController::class, 'update'])->middleware('perm:control.agents')->name('clients.update');
+    Route::patch('clients/{client}', [ClientController::class, 'update'])->middleware('perm:control.agents')->name('clients.update');
     Route::delete('agents/{agent}', [AgentController::class, 'destroy'])->middleware('perm:control.agents')->name('agents.destroy');
-    Route::delete('clients/{agent}', [AgentController::class, 'destroy'])->middleware('perm:control.agents')->name('clients.destroy');
+    Route::delete('clients/{client}', [ClientController::class, 'destroy'])->middleware('perm:control.agents')->name('clients.destroy');
     Route::get('agents/{agent}/pricing', [AgentPricingController::class, 'edit'])->middleware('perm:control.agents')->name('agents.pricing.edit');
     Route::patch('agents/{agent}/pricing', [AgentPricingController::class, 'update'])->middleware('perm:control.agents')->name('agents.pricing.update');
     Route::get('agents/{agent}/ledger', [AgentLedgerController::class, 'show'])->middleware('perm:control.agents')->name('agents.ledger.show');
@@ -411,6 +413,7 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::get('reports/bs', [ReportController::class, 'balanceSheet'])->middleware('perm:reports.view')->name('reports.bs');
     Route::get('reports/cashflow', [ReportController::class, 'cashflow'])->middleware('perm:reports.view')->name('reports.cashflow');
     Route::get('reports/agents', [ReportController::class, 'agentPerformance'])->middleware('perm:reports.view')->name('reports.agents');
+    Route::get('reports/clients/outstanding', [ReportController::class, 'clientOutstanding'])->middleware('perm:reports.view')->name('reports.clients.outstanding');
     Route::get('reports/shipments/profitability', [ReportController::class, 'shipmentProfitability'])->middleware('perm:reports.view')->name('reports.shipments.profitability');
     Route::get('reports/shipments/weight-usage', [ReportController::class, 'weightUsage'])->middleware('perm:reports.view')->name('reports.shipments.weight-usage');
     Route::get('reports/shipments/mode-performance', [ReportController::class, 'modePerformance'])->middleware('perm:reports.view')->name('reports.shipments.mode-performance');
@@ -490,4 +493,17 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::get('gifts/{gift}/edit', [CustomerGiftController::class, 'edit'])->middleware('perm:sales.manage')->name('gifts.edit');
     Route::patch('gifts/{gift}', [CustomerGiftController::class, 'update'])->middleware('perm:sales.manage')->name('gifts.update');
     Route::delete('gifts/{gift}', [CustomerGiftController::class, 'destroy'])->middleware('perm:sales.manage')->name('gifts.destroy');
+});
+
+Route::middleware(['auth', 'client.portal'])->prefix('portal')->name('portal.')->group(function () {
+    Route::get('/', [ClientPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('shipments', [ClientPortalController::class, 'shipments'])->name('shipments.index');
+    Route::get('shipments/{shipment}', [ClientPortalController::class, 'showShipment'])->name('shipments.show');
+    Route::get('orders', [ClientPortalController::class, 'orders'])->name('orders.index');
+    Route::get('orders/{order}', [ClientPortalController::class, 'showOrder'])->name('orders.show');
+    Route::get('invoices', [ClientPortalController::class, 'invoices'])->name('invoices.index');
+    Route::get('invoices/{invoice}', [ClientPortalController::class, 'showInvoice'])->name('invoices.show');
+    Route::get('deliveries', [ClientPortalController::class, 'deliveries'])->name('deliveries.index');
+    Route::get('statement', [ClientPortalController::class, 'statement'])->name('statement');
+    Route::get('profile', [ClientPortalController::class, 'profile'])->name('profile');
 });

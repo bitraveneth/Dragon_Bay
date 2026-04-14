@@ -50,7 +50,7 @@
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
-                            <span>{{ $order->agent->name }} · {{ $order->agent->zone ?? '—' }}</span>
+                            <span>{{ $order->client?->name ?? $order->agent?->name ?? '—' }} · {{ $order->client?->company_name ?? '—' }}</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,7 +546,7 @@
         </div>
         <div class="text-right space-y-1">
             <h1 class="text-xl font-bold text-gray-900">{{ $isReturnOrder ? 'Return Order' : 'Order' }} #{{ $order->id }}</h1>
-            <p class="text-xs text-gray-600">Customer: {{ $order->agent->name }}</p>
+            <p class="text-xs text-gray-600">Customer: {{ $order->client?->name ?? $order->agent?->name ?? '—' }}</p>
             <p class="text-xs text-gray-600">Issued: {{ $order->created_at?->format('d M Y') ?? now()->format('d M Y') }}</p>
             @if($order->delivery_date)
                 <p class="text-xs text-gray-600">{{ $isReturnOrder ? 'Return' : 'Delivery' }}: {{ $order->delivery_date->format('d M Y') }}</p>
@@ -559,9 +559,12 @@
         <div>
             <h3 class="font-semibold text-sm">Bill to</h3>
             <p class="mt-1">
-                {{ $order->agent->name }}<br>
-                @if($order->agent->zone)
-                    {{ $order->agent->zone }}<br>
+                {{ $order->client?->name ?? $order->agent?->name ?? '—' }}<br>
+                @if($order->client?->company_name)
+                    {{ $order->client->company_name }}<br>
+                @endif
+                @if($order->client?->address)
+                    {{ $order->client->address }}<br>
                 @endif
                 @if($order->agent_reference)
                     Ref: {{ $order->agent_reference }}

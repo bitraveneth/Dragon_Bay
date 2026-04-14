@@ -9,6 +9,12 @@ class AgentCommissionSettlement extends Model
 {
     use HasFactory;
 
+    // Status flow: open → expected → approved (payable) → paid
+    public const STATUS_OPEN = 'open';
+    public const STATUS_EXPECTED = 'expected';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_PAID = 'paid';
+
     protected $fillable = [
         'agent_id',
         'period_start',

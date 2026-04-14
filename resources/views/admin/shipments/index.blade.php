@@ -54,7 +54,7 @@
                                 </a>
                                 <div class="text-xs text-gray-500">Order #{{ $shipment->order_id ?? '-' }}</div>
                             </td>
-                            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $shipment->agent?->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $shipment->client?->name ?? $shipment->agent?->name ?? '-' }}</td>
                             <td class="px-4 py-3">{{ strtoupper(str_replace('_', ' ', $shipment->mode)) }}</td>
                             <td class="px-4 py-3">{{ ucwords(str_replace('_', ' ', $shipment->status)) }}</td>
                             <td class="px-4 py-3 text-right">{{ number_format($shipment->packages->sum('chargeable_weight_kg'), 3) }}</td>

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SalesTargetController;
 use App\Models\Agent;
 use App\Models\AgentAdvance;
+use App\Models\Client;
 use App\Models\AgentCommissionSettlement;
 use App\Models\AgentCommissionRule;
 use App\Models\AgentPriceList;
@@ -119,8 +120,17 @@ class SystemCalculationTest extends TestCase
             'status' => 'available',
         ]);
 
+        $client = Client::create([
+            'name' => 'Test Client One',
+            'agent_id' => $agent->id,
+            'credit_limit' => 50000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/agent/orders', [
+                'client_id' => $client->id,
                 'order_type' => 'regular',
                 'items' => [
                     [
@@ -433,9 +443,18 @@ class SystemCalculationTest extends TestCase
             'status' => 'available',
         ]);
 
+        $clientE2E = Client::create([
+            'name' => 'Client EndToEnd',
+            'agent_id' => $agent->id,
+            'credit_limit' => 200000,
+            'withholding_rate' => 5,
+            'is_active' => true,
+        ]);
+
         // 2) Sales order with commission + stock reservation.
         $orderResponse = $this->actingAs($user, 'sanctum')
             ->postJson('/api/agent/orders', [
+                'client_id' => $clientE2E->id,
                 'order_type' => 'regular',
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 20],
@@ -495,7 +514,8 @@ class SystemCalculationTest extends TestCase
         $settlement = AgentCommissionSettlement::where('agent_id', $agent->id)->firstOrFail();
         $this->assertEquals(2400.0, (float) $settlement->sales_total);
         $this->assertEquals(120.0, (float) $settlement->commission_total);
-        $this->assertEquals('open', $settlement->status);
+        // Invoice has been issued but not paid → status is 'expected' (invoices issued, awaiting client payment)
+        $this->assertEquals('expected', $settlement->status);
 
         // 6) Final settlement of receivable.
         Receipt::create([
@@ -1108,6 +1128,14 @@ class SystemCalculationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $clientOrderTypes = Client::create([
+            'name' => 'Client Order Types',
+            'agent_id' => $agent->id,
+            'credit_limit' => 1000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
         $product = Product::create([
             'sku' => 'SKU-ORDER-TYPES',
             'name' => 'Order Type Product',
@@ -1126,6 +1154,7 @@ class SystemCalculationTest extends TestCase
         $controller = app(OrderController::class);
 
         $controller->store(new Request([
+            'client_id' => $clientOrderTypes->id,
             'agent_id' => $agent->id,
             'order_type' => 'sample',
             'items' => [
@@ -1142,6 +1171,7 @@ class SystemCalculationTest extends TestCase
         $this->assertNull(app(FinanceController::class)->ensureInvoiceForOrder($sampleOrder->fresh()));
 
         $controller->store(new Request([
+            'client_id' => $clientOrderTypes->id,
             'agent_id' => $agent->id,
             'order_type' => 'return',
             'items' => [
@@ -1155,6 +1185,7 @@ class SystemCalculationTest extends TestCase
         $this->assertEquals(0.0, (float) StockEntry::where('order_id', $returnOrder->id)->sum('quantity'));
 
         $controller->store(new Request([
+            'client_id' => $clientOrderTypes->id,
             'agent_id' => $agent->id,
             'order_type' => 'bulk',
             'items' => [
@@ -1378,6 +1409,7 @@ class SystemCalculationTest extends TestCase
         ]);
 
         $controller = app(CommissionSettlementController::class);
+        $controller->updateStatus(new Request(['status' => 'expected']), $settlement->fresh());
         $controller->updateStatus(new Request(['status' => 'approved']), $settlement->fresh());
         $controller->updateStatus(new Request(['status' => 'paid', 'payment_method' => 'bank_transfer', 'payment_reference' => 'PAYOUT-1']), $settlement->fresh());
 
@@ -2949,6 +2981,14 @@ class SystemCalculationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $clientMovement = Client::create([
+            'name' => 'Movement Client',
+            'agent_id' => $agent->id,
+            'credit_limit' => 10000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
         $warehouseId = DB::table('warehouses')->insertGetId([
             'name' => 'Sales Warehouse',
             'created_at' => now(),
@@ -2983,6 +3023,7 @@ class SystemCalculationTest extends TestCase
         $this->actingAs($admin);
 
         app(OrderController::class)->store(new Request([
+            'client_id' => $clientMovement->id,
             'agent_id' => $agent->id,
             'order_type' => 'regular',
             'items' => [[
@@ -5792,6 +5833,20 @@ class SystemCalculationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('clients', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('company_name')->nullable();
+            $table->string('email')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('currency')->default('BDT');
+            $table->decimal('credit_limit', 15, 2)->default(0);
+            $table->decimal('withholding_rate', 5, 2)->default(0);
+            $table->unsignedBigInteger('agent_id')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -5799,6 +5854,7 @@ class SystemCalculationTest extends TestCase
             $table->string('password');
             $table->string('role')->default('admin');
             $table->unsignedBigInteger('agent_id')->nullable();
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->unsignedBigInteger('employee_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
@@ -6334,7 +6390,8 @@ class SystemCalculationTest extends TestCase
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('client_id')->nullable();
+            $table->unsignedBigInteger('agent_id')->nullable();
             $table->string('order_type')->default('regular');
             $table->string('agent_reference')->nullable();
             $table->date('delivery_date')->nullable();

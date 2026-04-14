@@ -27,6 +27,7 @@ class Shipment extends Model
 
     protected $fillable = [
         'order_id',
+        'client_id',
         'agent_id',
         'shipment_no',
         'mode',
@@ -108,9 +109,10 @@ class Shipment extends Model
         return $this->hasOne(ShipmentPod::class);
     }
 
+    /** The cargo client this shipment belongs to. */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'agent_id');
+        return $this->belongsTo(Client::class);
     }
 
     public function getTotalActualWeightKgAttribute(): float

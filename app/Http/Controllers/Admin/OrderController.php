@@ -30,7 +30,7 @@ class OrderController extends Controller
             $orderTypeFilter = 'all';
         }
 
-        $orders = Order::with('agent')
+        $orders = Order::with('client', 'agent')
             ->when($orderTypeFilter === 'sales', function ($query) {
                 $query->where('order_type', '!=', 'return');
             })
@@ -46,7 +46,7 @@ class OrderController extends Controller
 
     public function pickingOverview()
     {
-        $orders = Order::with('agent')
+        $orders = Order::with('client', 'agent')
             ->whereIn('status', ['confirmed', 'picked'])
             ->latest()
             ->paginate(10);
@@ -56,19 +56,19 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        $order->load(['agent', 'items.product.taxClass', 'statusHistory']);
+        $order->load(['client', 'agent', 'items.product.taxClass', 'statusHistory']);
         return view('admin.orders.show', compact('order'));
     }
 
     public function edit(Order $order)
     {
-        $order->load(['agent', 'items.product']);
+        $order->load(['client', 'agent', 'items.product']);
         return view('admin.orders.edit', compact('order'));
     }
 
     public function pickingList(Order $order)
     {
-        $order->load('agent', 'items.product', 'delivery');
+        $order->load('client', 'agent', 'items.product', 'delivery');
 
         $lines = [];
 
@@ -130,7 +130,7 @@ class OrderController extends Controller
 
     public function create()
     {
-        $agents = Agent::orderBy('name')->get();
+        $clients = \App\Models\Client::where('is_active', true)->orderBy('name')->get();
         // Only sellable finished products should be available on the order form
         $products = Product::where(function ($q) {
                 $q->whereNull('product_type')
@@ -152,8 +152,13 @@ class OrderController extends Controller
                 return $rows->pluck('price', 'product_id');
             });
 
+        // Map client → agent so the view can look up price lists
+        $clientAgentMap = \App\Models\Client::whereNotNull('agent_id')
+            ->pluck('agent_id', 'id');
+
         return view('admin.orders.create', [
-            'agents' => $agents,
+            'clients' => $clients,
+            'clientAgentMap' => $clientAgentMap,
             'products' => $products,
             'availability' => $availability,
             'priceLists' => $priceLists,
@@ -163,7 +168,8 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'agent_id' => 'required|exists:agents,id',
+            'client_id' => 'required|exists:clients,id',
+            'agent_id' => 'nullable|exists:agents,id',
             'order_type' => 'required|in:regular,bulk,sample,return',
             'agent_reference' => 'nullable|string|max:255',
             'delivery_date' => 'nullable|date',
@@ -185,7 +191,8 @@ class OrderController extends Controller
         $order = DB::transaction(function () use ($data) {
             $calculator = app(CommissionCalculator::class);
             $order = Order::create([
-                'agent_id' => $data['agent_id'],
+                'client_id' => $data['client_id'],
+                'agent_id' => $data['agent_id'] ?? null,
                 'order_type' => $data['order_type'],
                 'agent_reference' => $data['agent_reference'] ?? null,
                 'delivery_date' => $data['delivery_date'] ?? null,
@@ -204,12 +211,19 @@ class OrderController extends Controller
                 'changed_at' => now(),
             ]);
 
-            $agentPrices = AgentPriceList::where('agent_id', $data['agent_id'])
-                ->pluck('price', 'product_id');
+            // Resolve the internal agent — either explicitly passed or derived from the client
+            $resolvedAgentId = $data['agent_id']
+                ?? \App\Models\Client::find($data['client_id'])?->agent_id;
+
+            $agentPrices = $resolvedAgentId
+                ? AgentPriceList::where('agent_id', $resolvedAgentId)->pluck('price', 'product_id')
+                : collect();
             $products = Product::whereIn('id', collect($data['items'])->pluck('product_id'))
                 ->get()
                 ->keyBy('id');
-            $commissionRules = AgentCommissionRule::where('agent_id', $data['agent_id'])->get();
+            $commissionRules = $resolvedAgentId
+                ? AgentCommissionRule::where('agent_id', $resolvedAgentId)->get()
+                : collect();
 
             $total = 0;
             $commissionTotal = 0;
@@ -506,26 +520,34 @@ class OrderController extends Controller
             return;
         }
 
-        $agent = Agent::findOrFail($order->agent_id);
-        $creditLimit = (float) ($agent->credit_limit ?? 0);
+        $client = \App\Models\Client::find($order->client_id);
+        if (! $client) {
+            return;
+        }
+
+        $creditLimit = (float) ($client->credit_limit ?? 0);
         if ($creditLimit <= 0) {
             return;
         }
 
-        $existingOutstanding = Invoice::whereHas('order', function ($query) use ($agent) {
-            $query->where('agent_id', $agent->id);
+        $existingOutstanding = Invoice::whereHas('order', function ($query) use ($client) {
+            $query->where('client_id', $client->id);
         })->get()->sum(fn (Invoice $invoice) => (float) $invoice->outstanding);
 
-        $availableAdvances = AgentAdvance::where('agent_id', $agent->id)
-            ->whereIn('status', ['open', 'partial'])
-            ->get()
-            ->sum(fn (AgentAdvance $advance) => $advance->available_amount);
+        // Also check any advances linked to the client's assigned agent
+        $agentId = $client->agent_id;
+        $availableAdvances = $agentId
+            ? AgentAdvance::where('agent_id', $agentId)
+                ->whereIn('status', ['open', 'partial'])
+                ->get()
+                ->sum(fn (AgentAdvance $advance) => $advance->available_amount)
+            : 0;
 
         $projectedExposure = max($existingOutstanding + $proposedTotal - $availableAdvances, 0);
 
         if ($projectedExposure > $creditLimit + 0.00001) {
             throw ValidationException::withMessages([
-                'agent_id' => ['This order exceeds the agent credit limit after considering open advances/prepayments.'],
+                'client_id' => ['This order exceeds the client credit limit after considering open advances/prepayments.'],
             ]);
         }
     }

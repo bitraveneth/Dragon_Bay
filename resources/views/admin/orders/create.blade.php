@@ -89,8 +89,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-11">
                         <!-- Agent -->
                         <div class="space-y-2">
-                            <label for="agent_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Agent <span class="text-error-500">*</span>
+                            <label for="client_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Client <span class="text-error-500">*</span>
                             </label>
                             <div class="relative group">
                                 <div class="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -98,14 +98,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                     </svg>
                                 </div>
-                                <select id="agent_id" 
-                                        name="agent_id" 
+                                <select id="client_id"
+                                        name="client_id"
                                         required
                                         class="w-full rounded-xl border border-gray-200 bg-white/50 pl-10 pr-10 py-3 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white appearance-none transition-all">
-                                    <option value="">Select agent</option>
-                                    @foreach($agents as $agent)
-                                        <option value="{{ $agent->id }}"{{ old('agent_id') == $agent->id ? ' selected' : '' }}>
-                                            {{ $agent->name }} · {{ $agent->zone ?? '—' }} · {{ $agent->area ?? '' }}
+                                    <option value="">Select client</option>
+                                    @foreach($clients as $client)
+                                        <option value="{{ $client->id }}"{{ old('client_id') == $client->id ? ' selected' : '' }}>
+                                            {{ $client->name }}{{ $client->company_name ? ' — ' . $client->company_name : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -115,7 +115,7 @@
                                     </svg>
                                 </div>
                             </div>
-                            @error('agent_id')
+                            @error('client_id')
                                 <p class="text-sm text-error-600 dark:text-error-500">{{ $message }}</p>
                             @enderror
                         </div>
@@ -403,14 +403,17 @@
     document.addEventListener('DOMContentLoaded', () => {
         window.agentPricing = @json($priceLists);
         window.productBasePrices = @json($products->pluck('base_price', 'id'));
+        window.clientAgentMap = @json($clientAgentMap ?? []);
 
         const itemsWrapper = document.getElementById('order-items');
         const addBtn = document.getElementById('add-item');
-        const agentSelect = document.getElementById('agent_id');
+        const clientSelect = document.getElementById('client_id');
         let index = {{ isset($order) && $order->items ? $order->items->count() : 1 }};
 
         function refreshPrices() {
-            const agentId = agentSelect?.value || null;
+            const clientId = clientSelect?.value || null;
+            // Resolve the agent for this client to look up agent-specific pricing
+            const agentId = (clientId && window.clientAgentMap && window.clientAgentMap[clientId]) || null;
             const agentPrices = (window.agentPricing && agentId && window.agentPricing[agentId]) || {};
 
             const productSelects = itemsWrapper.querySelectorAll('[data-product-select]');
@@ -473,7 +476,7 @@
             index += 1;
         });
 
-        agentSelect?.addEventListener('change', refreshPrices);
+        clientSelect?.addEventListener('change', refreshPrices);
 
         const initialSelects = itemsWrapper.querySelectorAll('[data-product-select]');
         initialSelects.forEach((select) => {

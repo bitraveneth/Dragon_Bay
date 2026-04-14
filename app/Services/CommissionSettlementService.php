@@ -36,24 +36,37 @@ class CommissionSettlementService
     public function refreshStatus(AgentCommissionSettlement $settlement): void
     {
         if ((float) $settlement->commission_total <= 0) {
-            $settlement->forceFill(['status' => 'open'])->save();
+            $settlement->forceFill(['status' => AgentCommissionSettlement::STATUS_OPEN])->save();
 
             return;
         }
 
-        if ($settlement->paid_at || $settlement->status === 'paid') {
-            $settlement->forceFill(['status' => 'paid'])->save();
+        if ($settlement->paid_at || $settlement->status === AgentCommissionSettlement::STATUS_PAID) {
+            $settlement->forceFill(['status' => AgentCommissionSettlement::STATUS_PAID])->save();
 
             return;
         }
 
         $invoices = $this->relevantInvoicesQuery($settlement)->get();
-        $payable = $invoices->isNotEmpty()
-            && $invoices->every(fn (Invoice $invoice) => (float) $invoice->outstanding <= 0.00001);
 
-        $settlement->forceFill([
-            'status' => $payable ? 'approved' : 'open',
-        ])->save();
+        if ($invoices->isEmpty()) {
+            // Commission calculated but no invoices issued yet
+            $settlement->forceFill(['status' => AgentCommissionSettlement::STATUS_OPEN])->save();
+            return;
+        }
+
+        $allPaid = $invoices->every(fn (Invoice $invoice) => (float) $invoice->outstanding <= 0.00001);
+
+        if ($allPaid) {
+            // All client invoices paid — commission is now payable to agent
+            $settlement->forceFill([
+                'status' => AgentCommissionSettlement::STATUS_APPROVED,
+                'accrued_at' => $settlement->accrued_at ?? now(),
+            ])->save();
+        } else {
+            // Invoices issued, commission expected but awaiting client payment
+            $settlement->forceFill(['status' => AgentCommissionSettlement::STATUS_EXPECTED])->save();
+        }
     }
 
     protected function relevantInvoicesQuery(AgentCommissionSettlement $settlement): Builder

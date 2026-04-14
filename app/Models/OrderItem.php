@@ -17,6 +17,13 @@ class OrderItem extends Model
         'order_type',
         'commission_rate',
         'commission_amount',
+        'weight_kg',
+        'length_cm',
+        'width_cm',
+        'height_cm',
+        'pieces',
+        'cbm',
+        'chargeable_weight_kg',
     ];
 
     protected $casts = [
@@ -24,7 +31,44 @@ class OrderItem extends Model
         'unit_price' => 'decimal:2',
         'commission_rate' => 'decimal:2',
         'commission_amount' => 'decimal:2',
+        'weight_kg' => 'decimal:3',
+        'length_cm' => 'decimal:2',
+        'width_cm' => 'decimal:2',
+        'height_cm' => 'decimal:2',
+        'pieces' => 'integer',
+        'cbm' => 'decimal:4',
+        'chargeable_weight_kg' => 'decimal:3',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $item) {
+            $item->recalculateWeights();
+        });
+    }
+
+    public function recalculateWeights(): void
+    {
+        $l = (float) ($this->length_cm ?? 0);
+        $w = (float) ($this->width_cm ?? 0);
+        $h = (float) ($this->height_cm ?? 0);
+        $pieces = max((int) ($this->pieces ?? 1), 1);
+
+        if ($l > 0 && $w > 0 && $h > 0) {
+            $cbm = round(($l * $w * $h * $pieces) / 1_000_000, 4);
+            $this->cbm = $cbm;
+
+            // Volumetric weight: CBM × 167 (industry standard for air; use as default)
+            $volumetricWeight = round($cbm * 167, 3);
+            $actualWeight = (float) ($this->weight_kg ?? 0);
+            $this->chargeable_weight_kg = $actualWeight > 0
+                ? max($actualWeight, $volumetricWeight)
+                : $volumetricWeight;
+        } elseif ((float) ($this->weight_kg ?? 0) > 0) {
+            $this->cbm = null;
+            $this->chargeable_weight_kg = (float) $this->weight_kg;
+        }
+    }
 
     public function order()
     {

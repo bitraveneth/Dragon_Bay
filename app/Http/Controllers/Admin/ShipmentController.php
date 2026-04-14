@@ -28,7 +28,7 @@ class ShipmentController extends Controller
 {
     public function index(Request $request)
     {
-        $shipments = Shipment::with(['agent', 'order', 'packages', 'expenses'])
+        $shipments = Shipment::with(['client', 'agent', 'order', 'packages', 'expenses'])
             ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
             ->when($request->query('mode'), fn ($query, $mode) => $query->where('mode', $mode))
             ->orderByDesc('created_at')
@@ -50,8 +50,9 @@ class ShipmentController extends Controller
                 'origin_country' => 'China',
                 'destination_country' => 'Bangladesh',
             ]),
+            'clients' => \App\Models\Client::where('is_active', true)->orderBy('name')->get(),
             'agents' => Agent::where('is_active', true)->orderBy('name')->get(),
-            'orders' => Order::with('agent')->latest()->take(100)->get(),
+            'orders' => Order::with('client')->latest()->take(100)->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
             'modes' => Shipment::MODES,
         ]);
@@ -79,6 +80,7 @@ class ShipmentController extends Controller
     public function show(Shipment $shipment)
     {
         $shipment->load([
+            'client',
             'agent',
             'order',
             'originWarehouse',
@@ -323,7 +325,8 @@ class ShipmentController extends Controller
     {
         return $request->validate([
             'order_id' => 'nullable|exists:orders,id',
-            'agent_id' => 'required|exists:agents,id',
+            'client_id' => 'required|exists:clients,id',
+            'agent_id' => 'nullable|exists:agents,id',
             'shipment_no' => 'nullable|string|max:80|unique:shipments,shipment_no',
             'mode' => ['required', Rule::in(Shipment::MODES)],
             'origin_country' => 'required|string|max:80',
