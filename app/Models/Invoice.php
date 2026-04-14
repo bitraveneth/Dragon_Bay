@@ -13,13 +13,16 @@ class Invoice extends Model
 
     protected $fillable = [
         'order_id',
+        'shipment_id',
         'number',
+        'invoice_type',
         'issued_at',
         'due_at',
         'net_total',
         'vat_amount',
         'withholding',
         'status',
+        'locked_at',
     ];
 
     protected $casts = [
@@ -28,6 +31,7 @@ class Invoice extends Model
         'net_total'   => 'decimal:2',
         'vat_amount'  => 'decimal:2',
         'withholding' => 'decimal:2',
+        'locked_at'   => 'datetime',
     ];
 
     public function items()
@@ -43,6 +47,11 @@ class Invoice extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function shipment()
+    {
+        return $this->belongsTo(Shipment::class);
     }
 
     public function advanceApplications()

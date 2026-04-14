@@ -285,6 +285,7 @@ class MenuHelper
                         'subItems' => [
                             ['name' => 'Application settings', 'path' => '/admin/settings', 'permission' => 'system.settings'],
                             ['name' => 'Client manual', 'path' => '/admin/client-guide', 'permission' => 'system.settings'],
+                            ['name' => 'Audit logs', 'path' => '/admin/audit-logs', 'permission' => 'audit.view'],
                             ['name' => 'User manager', 'path' => '/admin/users', 'permission' => 'roles.manage'],
                             ['name' => 'Role manager', 'path' => '/admin/roles', 'permission' => 'roles.manage'],
                             ['name' => 'Permission manager', 'path' => '/admin/permissions', 'permission' => 'permissions.manage'],
@@ -345,6 +346,7 @@ class MenuHelper
                         'subItems' => [
                             ['name' => 'Sales dashboard', 'path' => '/admin/sales-dashboard', 'permission' => 'sales.manage'],
                             ['name' => 'Sales orders', 'path' => '/admin/orders', 'permission' => 'sales.manage'],
+                            ['name' => 'Shipments', 'path' => '/admin/shipments', 'permission' => 'logistics.shipments'],
                             ['name' => 'Sales targets', 'path' => '/admin/sales-targets', 'permission' => 'sales.manage'],
                             ['name' => 'Returns', 'path' => '/admin/returns/customer', 'permission' => 'sales.manage'],
                             ['name' => 'Customer gifts', 'path' => '/admin/gifts', 'permission' => 'sales.manage'],
@@ -391,6 +393,9 @@ class MenuHelper
                             ['name' => 'Cashflow', 'path' => '/admin/reports/cashflow', 'permission' => 'reports.view'],
                             ['name' => 'Tax report', 'path' => '/admin/reports/vat', 'permission' => 'reports.view'],
                             ['name' => 'Agent performance', 'path' => '/admin/reports/agents', 'permission' => 'reports.view'],
+                            ['name' => 'Shipment profitability', 'path' => '/admin/reports/shipments/profitability', 'permission' => 'reports.view'],
+                            ['name' => 'KG vs CBM usage', 'path' => '/admin/reports/shipments/weight-usage', 'permission' => 'reports.view'],
+                            ['name' => 'Air vs Sea performance', 'path' => '/admin/reports/shipments/mode-performance', 'permission' => 'reports.view'],
                             ['name' => 'Production reports', 'path' => '/admin/reports/production', 'permission' => 'reports.view'],
                             ['name' => 'Payroll summary', 'path' => '/admin/reports/payroll', 'permission' => 'reports.view'],
                         ],
@@ -502,13 +507,112 @@ class MenuHelper
 
     protected static function applyRuntimeMenuLinks(array $groups): array
     {
-        return self::ensureStockMovementLinks(
-            self::ensureAgentAdvanceLinks(
-                self::ensureWarehouseLocationLinks(
-                    self::ensureSystemSettingsLinks($groups)
+        return self::ensureLogisticsReportLinks(
+            self::ensureAuditLogLinks(
+                self::ensureShipmentLinks(
+                    self::ensureStockMovementLinks(
+                        self::ensureAgentAdvanceLinks(
+                            self::ensureWarehouseLocationLinks(
+                                self::ensureSystemSettingsLinks($groups)
+                            )
+                        )
+                    )
                 )
             )
         );
+    }
+
+    protected static function ensureAuditLogLinks(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            foreach ($group['items'] as &$item) {
+                $name = mb_strtolower(trim($item['name'] ?? ''));
+                $path = '/' . ltrim(trim($item['path'] ?? ''), '/');
+
+                if (! in_array($name, ['system settings', 'system & access'], true) && $path !== '/admin/settings') {
+                    continue;
+                }
+
+                $subItems = collect($item['subItems'] ?? []);
+                $subItems->push([
+                    'name' => 'Audit logs',
+                    'path' => '/admin/audit-logs',
+                    'permission' => 'audit.view',
+                ]);
+
+                $item['subItems'] = $subItems
+                    ->unique(fn (array $sub) => mb_strtolower(trim(($sub['name'] ?? '') . '|' . ($sub['path'] ?? ''))))
+                    ->values()
+                    ->all();
+            }
+        }
+
+        return $groups;
+    }
+
+    protected static function ensureLogisticsReportLinks(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            $title = mb_strtolower(trim($group['title'] ?? ''));
+
+            if (! in_array($title, ['reports & analytics', 'insights & reports'], true)) {
+                continue;
+            }
+
+            foreach ($group['items'] as &$item) {
+                $name = mb_strtolower(trim($item['name'] ?? ''));
+                $path = trim((string) ($item['path'] ?? ''));
+
+                if (! in_array($name, ['reports', 'insights'], true) && $path !== '#') {
+                    continue;
+                }
+
+                $subItems = collect($item['subItems'] ?? []);
+                $subItems->push(
+                    ['name' => 'Shipment profitability', 'path' => '/admin/reports/shipments/profitability', 'permission' => 'reports.view'],
+                    ['name' => 'KG vs CBM usage', 'path' => '/admin/reports/shipments/weight-usage', 'permission' => 'reports.view'],
+                    ['name' => 'Air vs Sea performance', 'path' => '/admin/reports/shipments/mode-performance', 'permission' => 'reports.view'],
+                );
+
+                $item['subItems'] = $subItems
+                    ->unique(fn (array $sub) => mb_strtolower(trim(($sub['name'] ?? '') . '|' . ($sub['path'] ?? ''))))
+                    ->values()
+                    ->all();
+            }
+        }
+
+        return $groups;
+    }
+
+    protected static function ensureShipmentLinks(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            $title = mb_strtolower(trim($group['title'] ?? ''));
+            if (! in_array($title, ['sales', 'orders & clients'], true)) {
+                continue;
+            }
+
+            foreach ($group['items'] as &$item) {
+                $name = mb_strtolower(trim($item['name'] ?? ''));
+                if (! in_array($name, ['sales', 'orders & clients', 'orders & clients'], true)) {
+                    continue;
+                }
+
+                $subItems = collect($item['subItems'] ?? []);
+                $subItems->push([
+                    'name' => 'Shipments',
+                    'path' => '/admin/shipments',
+                    'permission' => 'logistics.shipments',
+                ]);
+
+                $item['subItems'] = $subItems
+                    ->unique(fn (array $sub) => mb_strtolower(trim(($sub['name'] ?? '') . '|' . ($sub['path'] ?? ''))))
+                    ->values()
+                    ->all();
+            }
+        }
+
+        return $groups;
     }
 
     protected static function normalizeSidebarGroups(array $groups): array
@@ -543,7 +647,7 @@ class MenuHelper
             ->reject(function (array $group) {
                 return in_array(
                     mb_strtolower(trim($group['title'] ?? '')),
-                    self::hiddenGroupTitles(),
+                    self::sidebarHiddenGroupTitles(),
                     true
                 );
             })
@@ -552,7 +656,7 @@ class MenuHelper
                     ->map(function (array $item) {
                         $item['subItems'] = collect($item['subItems'] ?? [])
                             ->reject(function (array $subItem) {
-                                return self::isAdminPathHidden($subItem['path'] ?? null);
+                                return self::isSidebarPathHidden($subItem['path'] ?? null);
                             })
                             ->values()
                             ->all();
@@ -563,7 +667,7 @@ class MenuHelper
                         $path = trim((string) ($item['path'] ?? ''));
                         $subItems = $item['subItems'] ?? [];
 
-                        return self::isAdminPathHidden($path)
+                        return self::isSidebarPathHidden($path)
                             || ($path === '#' && empty($subItems));
                     })
                     ->values()
@@ -639,6 +743,7 @@ class MenuHelper
             '/admin/delivery-routes' => 'Delivery routes',
             '/admin/settings' => 'Application settings',
             '/admin/client-guide' => 'Operations manual',
+            '/admin/audit-logs' => 'Audit logs',
             '/admin/users' => 'User manager',
             '/admin/roles' => 'Role manager',
             '/admin/permissions' => 'Permission manager',
@@ -654,6 +759,7 @@ class MenuHelper
             '/admin/stock/audit' => 'Stock adjustments',
             '/admin/sales-dashboard' => 'Orders dashboard',
             '/admin/orders' => 'Client orders',
+            '/admin/shipments' => 'Shipments',
             '/admin/sales-targets' => 'Account targets',
             '/admin/returns/customer' => 'Client returns',
             '/admin/commissions' => 'Commission statements',
@@ -671,6 +777,9 @@ class MenuHelper
             '/admin/reports/cashflow' => 'Cashflow',
             '/admin/reports/vat' => 'Tax report',
             '/admin/reports/agents' => 'Client performance',
+            '/admin/reports/shipments/profitability' => 'Shipment profitability',
+            '/admin/reports/shipments/weight-usage' => 'KG vs CBM usage',
+            '/admin/reports/shipments/mode-performance' => 'Air vs Sea performance',
         ];
 
         if ($path !== null) {
@@ -719,6 +828,112 @@ class MenuHelper
 
         return [
             'manufacturing',
+        ];
+    }
+
+    protected static function sidebarHiddenGroupTitles(): array
+    {
+        return [
+            'manufacturing',
+        ];
+    }
+
+    protected static function isSidebarPathHidden(?string $path): bool
+    {
+        if ($path === null) {
+            return false;
+        }
+
+        $path = '/' . ltrim(trim($path), '/');
+
+        if (in_array($path, self::sidebarHiddenPaths(), true)) {
+            return true;
+        }
+
+        foreach (self::sidebarHiddenPathPrefixes() as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected static function sidebarHiddenPaths(): array
+    {
+        return [
+            // Old manufacturing/product-stock ERP areas not needed for the logistics SRS.
+            '/admin/products',
+            '/admin/materials',
+            '/admin/packaging',
+            '/admin/tax-classes',
+            '/admin/products-price-list',
+            '/admin/boms',
+            '/admin/production',
+            '/admin/production/pending-receipts',
+            '/admin/batches',
+            '/admin/manufacturing-dashboard',
+
+            // Supplier procurement and stock-control pages from the previous ERP.
+            '/admin/suppliers',
+            '/admin/purchase-orders',
+            '/admin/inventory',
+            '/admin/inventory/materials',
+            '/admin/goods-receipts',
+            '/admin/stock/movements',
+            '/admin/stock/transfers',
+            '/admin/deliveries/packing-slips',
+            '/admin/orders-picking',
+            '/admin/stock/audit',
+
+            // HR and CRM extras outside courier/air/sea/DDP logistics.
+            '/admin/employees',
+            '/admin/contracts',
+            '/admin/allowances',
+            '/admin/equipment',
+            '/admin/leaves',
+            '/admin/locations',
+            '/admin/badges',
+            '/admin/sales-targets',
+            '/admin/returns/customer',
+            '/admin/campaigns',
+            '/admin/gifts',
+            '/admin/salary-distributions',
+
+            // Reports tied to hidden business areas.
+            '/admin/reports/production',
+            '/admin/reports/payroll',
+
+            // Vendor bills are replaced by shipment expense capture.
+            '/admin/bills',
+        ];
+    }
+
+    protected static function sidebarHiddenPathPrefixes(): array
+    {
+        return [
+            '/admin/products',
+            '/admin/materials',
+            '/admin/packaging',
+            '/admin/tax-classes',
+            '/admin/suppliers',
+            '/admin/purchase-orders',
+            '/admin/boms',
+            '/admin/production',
+            '/admin/batches',
+            '/admin/employees',
+            '/admin/contracts',
+            '/admin/allowances',
+            '/admin/equipment',
+            '/admin/leaves',
+            '/admin/locations',
+            '/admin/badges',
+            '/admin/sales-targets',
+            '/admin/returns/customer',
+            '/admin/campaigns',
+            '/admin/gifts',
+            '/admin/salary-distributions',
+            '/admin/bills',
         ];
     }
 

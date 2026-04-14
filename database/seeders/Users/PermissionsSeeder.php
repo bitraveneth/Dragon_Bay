@@ -72,6 +72,24 @@ class PermissionsSeeder extends Seeder
                 'roles' => ['sales_officer', 'delivery_coordinator', 'warehouse_officer', 'accounts_officer'],
             ],
             [
+                'name'  => 'logistics.shipments',
+                'label' => 'Manage courier, air, sea and DDP shipments',
+                'group' => 'Logistics',
+                'roles' => ['sales_officer', 'delivery_coordinator', 'warehouse_officer', 'accounts_officer'],
+            ],
+            [
+                'name'  => 'logistics.pricing',
+                'label' => 'Lock logistics pricing and chargeable weight',
+                'group' => 'Logistics',
+                'roles' => ['sales_officer', 'accounts_officer'],
+            ],
+            [
+                'name'  => 'logistics.expenses',
+                'label' => 'Record and approve shipment expenses',
+                'group' => 'Logistics',
+                'roles' => ['delivery_coordinator', 'warehouse_officer', 'accounts_officer'],
+            ],
+            [
                 'name'  => 'accounting.manage',
                 'label' => 'Manage finance, bills, expenses & accounts',
                 'group' => 'Accounting & Finance',
@@ -99,6 +117,12 @@ class PermissionsSeeder extends Seeder
                 'name'  => 'system.settings',
                 'label' => 'Manage system configuration & settings',
                 'group' => 'System',
+                'roles' => ['admin'],
+            ],
+            [
+                'name'  => 'audit.view',
+                'label' => 'View audit logs',
+                'group' => 'Audit & Logs',
                 'roles' => ['admin'],
             ],
             // Action-level permissions (real-world granular control)

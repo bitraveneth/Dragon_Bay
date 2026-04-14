@@ -17,6 +17,7 @@ use App\Models\EmployeeAllowance;
 use App\Models\BillOfMaterial;
 use App\Models\SalaryDistribution;
 use App\Models\PurchaseBill;
+use App\Models\Shipment;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,88 @@ use Illuminate\Support\Facades\Schema;
 
 class ReportController extends Controller
 {
+    public function shipmentProfitability(Request $request)
+    {
+        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
+
+        $shipments = Shipment::with(['agent', 'packages', 'expenses', 'invoices'])
+            ->whereBetween('created_at', [$from, $to])
+            ->get();
+
+        $rows = $shipments->map(function (Shipment $shipment) {
+            $revenue = (float) ($shipment->final_price ?? $shipment->estimated_price);
+            $cost = (float) $shipment->expenses
+                ->where('status', 'approved')
+                ->sum(fn ($expense) => $expense->effective_amount);
+
+            return [
+                'shipment' => $shipment,
+                'client' => $shipment->agent?->name,
+                'mode' => $shipment->mode,
+                'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
+                'revenue' => $revenue,
+                'cost' => $cost,
+                'profit' => $revenue - $cost,
+            ];
+        });
+
+        return view('admin.reports.shipment-profitability', compact('from', 'to', 'rows'));
+    }
+
+    public function weightUsage(Request $request)
+    {
+        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
+
+        $shipments = Shipment::with(['agent', 'packages'])
+            ->whereBetween('created_at', [$from, $to])
+            ->get();
+
+        $rows = $shipments->map(function (Shipment $shipment) {
+            return [
+                'shipment' => $shipment,
+                'client' => $shipment->agent?->name,
+                'actual_weight' => $shipment->packages->sum('actual_weight_kg'),
+                'cbm' => $shipment->packages->sum('cbm'),
+                'volumetric_weight' => $shipment->packages->sum('volumetric_weight_kg'),
+                'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
+            ];
+        });
+
+        return view('admin.reports.weight-usage', compact('from', 'to', 'rows'));
+    }
+
+    public function modePerformance(Request $request)
+    {
+        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
+
+        $shipments = Shipment::with(['packages', 'expenses'])
+            ->whereBetween('created_at', [$from, $to])
+            ->get();
+
+        $rows = $shipments
+            ->groupBy('mode')
+            ->map(function (Collection $group, string $mode) {
+                $revenue = (float) $group->sum(fn (Shipment $shipment) => (float) ($shipment->final_price ?? $shipment->estimated_price));
+                $cost = (float) $group->sum(function (Shipment $shipment) {
+                    return $shipment->expenses
+                        ->where('status', 'approved')
+                        ->sum(fn ($expense) => $expense->effective_amount);
+                });
+
+                return [
+                    'mode' => $mode,
+                    'shipments' => $group->count(),
+                    'chargeable_weight' => $group->sum(fn (Shipment $shipment) => $shipment->packages->sum('chargeable_weight_kg')),
+                    'revenue' => $revenue,
+                    'cost' => $cost,
+                    'profit' => $revenue - $cost,
+                ];
+            })
+            ->values();
+
+        return view('admin.reports.mode-performance', compact('from', 'to', 'rows'));
+    }
+
     public function profitAndLoss(Request $request)
     {
         [$from, $to] = $this->resolveDateRange(
@@ -133,7 +216,7 @@ class ReportController extends Controller
         $inputVat = (float) $inputEntries->sum('debit') - (float) $inputEntries->sum('credit');
         $vatCollected = round($outputVat - $inputVat, 2);
 
-        // Detailed per‑invoice breakdown (output VAT)
+        // Detailed per-invoice breakdown (output VAT)
         $invoices = Invoice::with(['order.agent', 'creditNotes'])
             ->whereDate('issued_at', '>=', $from->toDateString())
             ->whereDate('issued_at', '<=', $to->toDateString())

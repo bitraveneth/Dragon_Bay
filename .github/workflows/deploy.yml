@@ -199,6 +199,9 @@ jobs:
             log_step "Run migrations"
             php artisan migrate --force
 
+            log_step "Seed permissions"
+            php artisan db:seed --class="Database\\Seeders\\Users\\PermissionsSeeder" --force
+
             log_step "Refresh Laravel caches"
             php artisan optimize:clear
             php artisan config:cache

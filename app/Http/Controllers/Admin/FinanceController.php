@@ -12,6 +12,8 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Order;
 use App\Models\Receipt;
+use App\Models\User;
+use App\Notifications\SystemAlertNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -279,6 +281,22 @@ class FinanceController extends Controller
 
             $invoice->recalculateStatus();
         });
+
+        $this->notifyRoles(
+            ['super_admin', 'admin', 'accounts_officer'],
+            [
+                'title' => 'Client payment recorded',
+                'message' => 'Payment of BDT ' . number_format((float) $receipt->amount, 2) . ' recorded for invoice ' . $invoice->number . '.',
+                'variant' => 'success',
+                'source' => 'Finance',
+                'link' => route('admin.finance.show', $invoice),
+                'context' => [
+                    'invoice_id' => $invoice->id,
+                    'receipt_id' => $receipt->id,
+                    'amount' => (float) $receipt->amount,
+                ],
+            ]
+        );
 
         return redirect()->route('admin.finance.show', $invoice)->with('status', 'Receipt recorded.');
     }
@@ -609,5 +627,17 @@ class FinanceController extends Controller
             'order_id' => $invoice->order_id,
             'invoice_id' => $invoice->id,
         ]);
+    }
+
+    protected function notifyRoles(array $roles, array $payload): void
+    {
+        if (! Schema::hasTable('notifications') || ! Schema::hasTable('users')) {
+            return;
+        }
+
+        User::query()
+            ->get()
+            ->filter(fn (User $user) => $user->hasAnyRole($roles))
+            ->each(fn (User $user) => $user->notify(new SystemAlertNotification($payload)));
     }
 }

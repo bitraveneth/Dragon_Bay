@@ -58,6 +58,8 @@ use App\Http\Controllers\Admin\AccountingDashboardController;
 use App\Http\Controllers\Admin\ReportsDashboardController;
 use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\AgentAdvanceController;
+use App\Http\Controllers\Admin\ShipmentController;
+use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
@@ -102,6 +104,7 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::post('settings/backups', [SystemSettingController::class, 'createBackup'])->middleware('perm:system.settings')->name('settings.backups.create');
     Route::get('settings/backups/{filename}', [SystemSettingController::class, 'downloadBackup'])->middleware('perm:system.settings')->where('filename', '.*')->name('settings.backups.download');
     Route::post('settings/backups/restore', [SystemSettingController::class, 'restoreBackup'])->middleware('perm:system.settings')->name('settings.backups.restore');
+    Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('perm:audit.view')->name('audit.index');
 
     // Sales dashboard
     Route::get('sales-dashboard', SalesDashboardController::class)
@@ -313,6 +316,18 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::delete('orders/{order}', [OrderController::class, 'destroy'])->middleware('perm:sales.manage')->name('orders.destroy');
     Route::post('orders/{order}/invoice', [FinanceController::class, 'createFromOrder'])->middleware('perm:sales.manage')->name('orders.invoice');
 
+    Route::get('shipments', [ShipmentController::class, 'index'])->middleware('perm:logistics.shipments')->name('shipments.index');
+    Route::get('shipments/create', [ShipmentController::class, 'create'])->middleware('perm:logistics.shipments')->name('shipments.create');
+    Route::post('shipments', [ShipmentController::class, 'store'])->middleware('perm:logistics.shipments')->name('shipments.store');
+    Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->middleware('perm:logistics.shipments')->name('shipments.show');
+    Route::patch('shipments/{shipment}/status', [ShipmentController::class, 'updateStatus'])->middleware('perm:logistics.shipments')->name('shipments.status.update');
+    Route::post('shipments/{shipment}/packages', [ShipmentController::class, 'storePackage'])->middleware('perm:logistics.shipments')->name('shipments.packages.store');
+    Route::post('shipments/{shipment}/legs', [ShipmentController::class, 'storeLeg'])->middleware('perm:logistics.shipments')->name('shipments.legs.store');
+    Route::post('shipments/{shipment}/expenses', [ShipmentController::class, 'storeExpense'])->middleware('perm:logistics.expenses')->name('shipments.expenses.store');
+    Route::post('shipments/{shipment}/expenses/{expense}/approve', [ShipmentController::class, 'approveExpense'])->middleware('perm:logistics.expenses')->name('shipments.expenses.approve');
+    Route::post('shipments/{shipment}/pricing/lock', [ShipmentController::class, 'lockPricing'])->middleware('perm:logistics.pricing')->name('shipments.pricing.lock');
+    Route::post('shipments/{shipment}/invoice', [ShipmentController::class, 'createInvoice'])->middleware('perm:finance.invoice.issue')->name('shipments.invoice');
+
     Route::get('deliveries', [DeliveryController::class, 'index'])->middleware('perm:control.warehouses')->name('deliveries.index');
     Route::get('deliveries/pod', [DeliveryController::class, 'podIndex'])->middleware('perm:control.warehouses')->name('deliveries.pod-index');
     Route::get('deliveries/packing-slips', [DeliveryController::class, 'packingIndex'])->middleware('perm:control.warehouses')->name('deliveries.packing-index');
@@ -388,6 +403,9 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::get('reports/bs', [ReportController::class, 'balanceSheet'])->middleware('perm:reports.view')->name('reports.bs');
     Route::get('reports/cashflow', [ReportController::class, 'cashflow'])->middleware('perm:reports.view')->name('reports.cashflow');
     Route::get('reports/agents', [ReportController::class, 'agentPerformance'])->middleware('perm:reports.view')->name('reports.agents');
+    Route::get('reports/shipments/profitability', [ReportController::class, 'shipmentProfitability'])->middleware('perm:reports.view')->name('reports.shipments.profitability');
+    Route::get('reports/shipments/weight-usage', [ReportController::class, 'weightUsage'])->middleware('perm:reports.view')->name('reports.shipments.weight-usage');
+    Route::get('reports/shipments/mode-performance', [ReportController::class, 'modePerformance'])->middleware('perm:reports.view')->name('reports.shipments.mode-performance');
     Route::get('reports/production', [ReportController::class, 'productionSummary'])->middleware('perm:reports.view')->name('reports.production');
     Route::get('reports/payroll', [ReportController::class, 'payrollSummary'])->middleware('perm:reports.view')->name('reports.payroll');
     Route::get('salary-distributions', [SalaryDistributionController::class, 'index'])->middleware('perm:accounting.manage')->name('salary-distributions.index');
