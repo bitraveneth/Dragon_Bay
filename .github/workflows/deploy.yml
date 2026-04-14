@@ -155,7 +155,7 @@ jobs:
             cd "$VPS_PATH"
 
             log_step "Ensure scheduler cron"
-            CRON_MARKER="# saferpv1-laravel-scheduler"
+            CRON_MARKER="# erp-dragonbay-laravel-scheduler"
             CRON_ENTRY="* * * * * cd \"$VPS_PATH\" && php artisan schedule:run >> /dev/null 2>&1 $CRON_MARKER"
             ( crontab -l 2>/dev/null | grep -v "\$CRON_MARKER" || true; echo "\$CRON_ENTRY" ) | crontab -
             echo "[INFO] Scheduler cron ensured."
