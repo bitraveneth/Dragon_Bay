@@ -282,12 +282,19 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::post('employees/{employee}/badges/grant', [BadgeController::class, 'grant'])->middleware('perm:control.employees')->name('employees.badges.grant');
 
     Route::get('agents', [AgentController::class, 'index'])->middleware('perm:control.agents')->name('agents.index');
+    Route::get('clients', [AgentController::class, 'index'])->middleware('perm:control.agents')->name('clients.index');
     Route::get('agents/create', [AgentController::class, 'create'])->middleware('perm:control.agents')->name('agents.create');
+    Route::get('clients/create', [AgentController::class, 'create'])->middleware('perm:control.agents')->name('clients.create');
     Route::post('agents', [AgentController::class, 'store'])->middleware('perm:control.agents')->name('agents.store');
+    Route::post('clients', [AgentController::class, 'store'])->middleware('perm:control.agents')->name('clients.store');
     Route::get('agents/{agent}', [AgentController::class, 'show'])->middleware('perm:control.agents')->name('agents.show');
+    Route::get('clients/{agent}', [AgentController::class, 'show'])->middleware('perm:control.agents')->name('clients.show');
     Route::get('agents/{agent}/edit', [AgentController::class, 'edit'])->middleware('perm:control.agents')->name('agents.edit');
+    Route::get('clients/{agent}/edit', [AgentController::class, 'edit'])->middleware('perm:control.agents')->name('clients.edit');
     Route::patch('agents/{agent}', [AgentController::class, 'update'])->middleware('perm:control.agents')->name('agents.update');
+    Route::patch('clients/{agent}', [AgentController::class, 'update'])->middleware('perm:control.agents')->name('clients.update');
     Route::delete('agents/{agent}', [AgentController::class, 'destroy'])->middleware('perm:control.agents')->name('agents.destroy');
+    Route::delete('clients/{agent}', [AgentController::class, 'destroy'])->middleware('perm:control.agents')->name('clients.destroy');
     Route::get('agents/{agent}/pricing', [AgentPricingController::class, 'edit'])->middleware('perm:control.agents')->name('agents.pricing.edit');
     Route::patch('agents/{agent}/pricing', [AgentPricingController::class, 'update'])->middleware('perm:control.agents')->name('agents.pricing.update');
     Route::get('agents/{agent}/ledger', [AgentLedgerController::class, 'show'])->middleware('perm:control.agents')->name('agents.ledger.show');
@@ -323,6 +330,7 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::patch('shipments/{shipment}/status', [ShipmentController::class, 'updateStatus'])->middleware('perm:logistics.shipments')->name('shipments.status.update');
     Route::post('shipments/{shipment}/packages', [ShipmentController::class, 'storePackage'])->middleware('perm:logistics.shipments')->name('shipments.packages.store');
     Route::post('shipments/{shipment}/legs', [ShipmentController::class, 'storeLeg'])->middleware('perm:logistics.shipments')->name('shipments.legs.store');
+    Route::post('shipments/{shipment}/pod', [ShipmentController::class, 'storePod'])->middleware('perm:logistics.shipments')->name('shipments.pod.store');
     Route::post('shipments/{shipment}/expenses', [ShipmentController::class, 'storeExpense'])->middleware('perm:logistics.expenses')->name('shipments.expenses.store');
     Route::post('shipments/{shipment}/expenses/{expense}/approve', [ShipmentController::class, 'approveExpense'])->middleware('perm:logistics.expenses')->name('shipments.expenses.approve');
     Route::post('shipments/{shipment}/pricing/lock', [ShipmentController::class, 'lockPricing'])->middleware('perm:logistics.pricing')->name('shipments.pricing.lock');
@@ -406,6 +414,7 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::get('reports/shipments/profitability', [ReportController::class, 'shipmentProfitability'])->middleware('perm:reports.view')->name('reports.shipments.profitability');
     Route::get('reports/shipments/weight-usage', [ReportController::class, 'weightUsage'])->middleware('perm:reports.view')->name('reports.shipments.weight-usage');
     Route::get('reports/shipments/mode-performance', [ReportController::class, 'modePerformance'])->middleware('perm:reports.view')->name('reports.shipments.mode-performance');
+    Route::get('reports/shipments/{report}/export/{format}', [ReportController::class, 'exportShipmentReport'])->middleware('perm:reports.view')->name('reports.shipments.export');
     Route::get('reports/production', [ReportController::class, 'productionSummary'])->middleware('perm:reports.view')->name('reports.production');
     Route::get('reports/payroll', [ReportController::class, 'payrollSummary'])->middleware('perm:reports.view')->name('reports.payroll');
     Route::get('salary-distributions', [SalaryDistributionController::class, 'index'])->middleware('perm:accounting.manage')->name('salary-distributions.index');

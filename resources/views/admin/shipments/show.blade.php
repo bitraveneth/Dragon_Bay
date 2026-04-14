@@ -120,6 +120,41 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
         <section class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Proof of Delivery</h2>
+            @if($shipment->pod)
+                <div class="mt-4 rounded-lg border border-gray-200 p-4 text-sm dark:border-gray-800">
+                    <div class="grid gap-2 md:grid-cols-2">
+                        <div>
+                            <div class="text-xs uppercase text-gray-500">Received By</div>
+                            <div class="mt-1 text-gray-900 dark:text-white">{{ $shipment->pod->received_by ?: '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs uppercase text-gray-500">Delivered At</div>
+                            <div class="mt-1 text-gray-900 dark:text-white">{{ $shipment->pod->delivered_at?->format('d M Y H:i') ?: '-' }}</div>
+                        </div>
+                    </div>
+                    @if($shipment->pod->document_path)
+                        <a href="{{ asset('storage/' . $shipment->pod->document_path) }}" target="_blank" class="mt-3 inline-flex text-sm font-medium text-brand-600 dark:text-brand-300">
+                            Open POD document
+                        </a>
+                    @endif
+                    @if($shipment->pod->notes)
+                        <p class="mt-3 text-gray-500 dark:text-gray-400">{{ $shipment->pod->notes }}</p>
+                    @endif
+                </div>
+            @endif
+            <form method="POST" action="{{ route('admin.shipments.pod.store', $shipment) }}" enctype="multipart/form-data" class="mt-5 grid gap-3 md:grid-cols-2">
+                @csrf
+                <input type="file" name="document" class="{{ $input }} md:col-span-2">
+                <input name="received_by" value="{{ old('received_by', $shipment->pod?->received_by) }}" placeholder="Received by" class="{{ $input }}">
+                <input name="receiver_phone" value="{{ old('receiver_phone', $shipment->pod?->receiver_phone) }}" placeholder="Receiver phone" class="{{ $input }}">
+                <input type="datetime-local" name="delivered_at" value="{{ old('delivered_at', optional($shipment->pod?->delivered_at)->format('Y-m-d\\TH:i')) }}" class="{{ $input }}">
+                <textarea name="notes" rows="3" placeholder="POD notes" class="{{ $input }} md:col-span-2">{{ old('notes', $shipment->pod?->notes) }}</textarea>
+                <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-gray-900 md:col-span-2">Save POD</button>
+            </form>
+        </section>
+
+        <section class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Shipment Legs</h2>
             <div class="mt-4 space-y-3">
                 @foreach($shipment->legs as $leg)

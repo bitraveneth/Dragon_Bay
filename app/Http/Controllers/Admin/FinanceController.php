@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Notifications\SystemAlertNotification;
+use App\Services\CommissionSettlementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -281,6 +282,10 @@ class FinanceController extends Controller
 
             $invoice->recalculateStatus();
         });
+
+        app(CommissionSettlementService::class)->syncForInvoice(
+            $invoice->fresh(['order', 'shipment', 'receipts', 'creditNotes', 'advanceApplications'])
+        );
 
         $this->notifyRoles(
             ['super_admin', 'admin', 'accounts_officer'],

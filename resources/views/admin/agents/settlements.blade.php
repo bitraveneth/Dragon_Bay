@@ -4,6 +4,7 @@
 <div class="space-y-6">
     @php
         $canManageSettlementAccounting = \App\Helpers\Permission::can(auth()->user(), 'accounting.manage');
+        $workflowLabels = ['open' => 'Expected', 'approved' => 'Payable', 'paid' => 'Paid'];
     @endphp
     <!-- Header -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -50,8 +51,8 @@
         $totalCommission = $settlements->sum('commission_total');
         $avgRate = $totalSales > 0 ? ($totalCommission / $totalSales) * 100 : 0;
         $paidCount = $settlements->where('status', 'paid')->count();
-        $approvedCount = $settlements->where('status', 'approved')->count();
-        $openCount = $settlements->where('status', 'open')->count();
+        $payableCount = $settlements->where('status', 'approved')->count();
+        $expectedCount = $settlements->where('status', 'open')->count();
     @endphp
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -112,13 +113,13 @@
                         <span class="h-2 w-2 rounded-full bg-success-500"></span>
                         Paid: {{ $paidCount }}
                     </span>
-                    <span class="inline-flex items-center gap-1">
-                        <span class="h-2 w-2 rounded-full bg-brand-500"></span>
-                        Approved: {{ $approvedCount }}
+                        <span class="inline-flex items-center gap-1">
+                            <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+                        Payable: {{ $payableCount }}
                     </span>
                     <span class="inline-flex items-center gap-1">
                         <span class="h-2 w-2 rounded-full bg-gray-400"></span>
-                        Open: {{ $openCount }}
+                        Expected: {{ $expectedCount }}
                     </span>
                 </div>
             </div>
@@ -252,7 +253,7 @@
                                         <svg class="h-1.5 w-1.5 fill-current" viewBox="0 0 6 6">
                                             <circle cx="3" cy="3" r="3" />
                                         </svg>
-                                        {{ ucfirst($settlement->status) }}
+                                        {{ $workflowLabels[$settlement->status] ?? ucfirst($settlement->status) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
@@ -267,7 +268,7 @@
                                                         class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                                     @foreach(['open','approved','paid'] as $status)
                                                         <option value="{{ $status }}"{{ $settlement->status === $status ? ' selected' : '' }}>
-                                                            {{ ucfirst($status) }}
+                                                            {{ $workflowLabels[$status] ?? ucfirst($status) }}
                                                         </option>
                                                     @endforeach
                                                 </select>

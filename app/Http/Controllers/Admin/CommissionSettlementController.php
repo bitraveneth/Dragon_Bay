@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\AgentCommissionSettlement;
 use App\Models\LedgerEntry;
+use App\Services\CommissionSettlementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,7 @@ class CommissionSettlementController extends Controller
                 'status' => $settlement->status ?: 'open',
             ]);
             $settlement->save();
+            app(CommissionSettlementService::class)->refreshStatus($settlement);
 
             $processedAgentIds[] = $agent->id;
         }

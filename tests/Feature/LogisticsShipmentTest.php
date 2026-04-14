@@ -3,17 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\Agent;
+use App\Models\AgentCommissionSettlement;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Order;
+use App\Models\Receipt;
 use App\Models\Shipment;
 use App\Models\ShipmentPackage;
 use App\Models\User;
 use App\Notifications\SystemAlertNotification;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class LogisticsShipmentTest extends TestCase
@@ -28,6 +32,7 @@ class LogisticsShipmentTest extends TestCase
 
         $this->bootInMemorySqlite();
         $this->createMinimalSchema();
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
     }
 
     public function test_package_calculates_cbm_volumetric_and_chargeable_weight(): void
@@ -160,6 +165,134 @@ class LogisticsShipmentTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_upload_shipment_pod_document(): void
+    {
+        Storage::fake('public');
+
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-pod@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+        $shipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-POD',
+            'mode' => 'courier',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 10,
+        ]);
+
+        $this->actingAs($user)
+            ->post('/admin/shipments/' . $shipment->id . '/pod', [
+                'document' => UploadedFile::fake()->image('pod.jpg'),
+                'received_by' => 'Warehouse Receiver',
+                'receiver_phone' => '0123456789',
+                'notes' => 'Delivered in good condition',
+                'delivered_at' => '2026-04-15 10:30:00',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('shipment_pods', [
+            'shipment_id' => $shipment->id,
+            'received_by' => 'Warehouse Receiver',
+            'receiver_phone' => '0123456789',
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'shipment.pod_saved',
+        ]);
+    }
+
+    public function test_logistics_report_can_export_excel_compatible_csv(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-report@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+        $shipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-EXPORT',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 8,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $shipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 10,
+            'length_cm' => 20,
+            'width_cm' => 20,
+            'height_cm' => 20,
+        ]);
+
+        $response = $this->actingAs($user)->get('/admin/reports/shipments/weight/export/excel?from='
+            . now()->startOfMonth()->format('Y-m-d')
+            . '&to='
+            . now()->endOfMonth()->format('Y-m-d'));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('SHP-EXPORT', $response->streamedContent());
+    }
+
+    public function test_settlement_becomes_payable_after_client_payment_is_recorded(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-commission@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'status' => 'delivered',
+            'total' => 500,
+        ]);
+        $invoice = Invoice::create([
+            'order_id' => $order->id,
+            'number' => 'INV-SETTLE',
+            'invoice_type' => 'final',
+            'issued_at' => now()->startOfMonth(),
+            'due_at' => now()->startOfMonth()->addDays(7),
+            'net_total' => 500,
+            'vat_amount' => 0,
+            'withholding' => 0,
+            'status' => 'issued',
+        ]);
+        $settlement = AgentCommissionSettlement::create([
+            'agent_id' => $agent->id,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'sales_total' => 500,
+            'commission_total' => 50,
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('admin.finance.receipts.store', $invoice), [
+                'amount' => 500,
+                'payment_method' => 'bank_transfer',
+                'received_at' => now()->toDateString(),
+            ])
+            ->assertRedirect();
+
+        $this->assertEquals('paid', $invoice->fresh()->status);
+        $this->assertEquals('approved', $settlement->fresh()->status);
+        $this->assertDatabaseHas('ledger_entries', [
+            'invoice_id' => $invoice->id,
+            'account' => 'Accounts Receivable',
+            'credit' => 500,
+        ]);
+    }
+
     protected function bootInMemorySqlite(): void
     {
         config()->set('database.default', 'sqlite');
@@ -266,6 +399,17 @@ class LogisticsShipmentTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('shipment_pods', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shipment_id')->unique();
+            $table->string('document_path')->nullable();
+            $table->string('received_by')->nullable();
+            $table->string('receiver_phone')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('order_id')->nullable();
@@ -279,6 +423,51 @@ class LogisticsShipmentTest extends TestCase
             $table->decimal('withholding', 14, 2)->default(0);
             $table->string('status')->default('draft');
             $table->timestamp('locked_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('receipts', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('invoice_id');
+            $table->decimal('amount', 14, 2);
+            $table->string('payment_method')->nullable();
+            $table->date('received_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('credit_notes', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('invoice_id');
+            $table->unsignedBigInteger('order_id')->nullable();
+            $table->string('number')->nullable();
+            $table->date('issued_at')->nullable();
+            $table->decimal('amount', 14, 2)->default(0);
+            $table->text('reason')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('agent_advance_applications', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('agent_advance_id')->nullable();
+            $table->unsignedBigInteger('invoice_id');
+            $table->decimal('amount', 14, 2)->default(0);
+            $table->date('applied_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('agent_commission_settlements', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('agent_id');
+            $table->date('period_start');
+            $table->date('period_end');
+            $table->decimal('sales_total', 14, 2);
+            $table->decimal('commission_total', 14, 2);
+            $table->string('status')->default('open');
+            $table->timestamp('accrued_at')->nullable();
+            $table->date('paid_at')->nullable();
+            $table->string('payment_method')->nullable();
+            $table->string('payment_reference')->nullable();
             $table->timestamps();
         });
 

@@ -37,6 +37,11 @@ class Order extends Model
         return $this->belongsTo(Agent::class);
     }
 
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'agent_id');
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);

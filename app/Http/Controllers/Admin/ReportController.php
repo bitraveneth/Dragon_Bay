@@ -18,93 +18,54 @@ use App\Models\BillOfMaterial;
 use App\Models\SalaryDistribution;
 use App\Models\PurchaseBill;
 use App\Models\Shipment;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
     public function shipmentProfitability(Request $request)
     {
-        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
-
-        $shipments = Shipment::with(['agent', 'packages', 'expenses', 'invoices'])
-            ->whereBetween('created_at', [$from, $to])
-            ->get();
-
-        $rows = $shipments->map(function (Shipment $shipment) {
-            $revenue = (float) ($shipment->final_price ?? $shipment->estimated_price);
-            $cost = (float) $shipment->expenses
-                ->where('status', 'approved')
-                ->sum(fn ($expense) => $expense->effective_amount);
-
-            return [
-                'shipment' => $shipment,
-                'client' => $shipment->agent?->name,
-                'mode' => $shipment->mode,
-                'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
-                'revenue' => $revenue,
-                'cost' => $cost,
-                'profit' => $revenue - $cost,
-            ];
-        });
+        [$from, $to, $rows] = $this->buildShipmentReport('profitability', $request);
 
         return view('admin.reports.shipment-profitability', compact('from', 'to', 'rows'));
     }
 
     public function weightUsage(Request $request)
     {
-        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
-
-        $shipments = Shipment::with(['agent', 'packages'])
-            ->whereBetween('created_at', [$from, $to])
-            ->get();
-
-        $rows = $shipments->map(function (Shipment $shipment) {
-            return [
-                'shipment' => $shipment,
-                'client' => $shipment->agent?->name,
-                'actual_weight' => $shipment->packages->sum('actual_weight_kg'),
-                'cbm' => $shipment->packages->sum('cbm'),
-                'volumetric_weight' => $shipment->packages->sum('volumetric_weight_kg'),
-                'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
-            ];
-        });
+        [$from, $to, $rows] = $this->buildShipmentReport('weight', $request);
 
         return view('admin.reports.weight-usage', compact('from', 'to', 'rows'));
     }
 
     public function modePerformance(Request $request)
     {
-        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
-
-        $shipments = Shipment::with(['packages', 'expenses'])
-            ->whereBetween('created_at', [$from, $to])
-            ->get();
-
-        $rows = $shipments
-            ->groupBy('mode')
-            ->map(function (Collection $group, string $mode) {
-                $revenue = (float) $group->sum(fn (Shipment $shipment) => (float) ($shipment->final_price ?? $shipment->estimated_price));
-                $cost = (float) $group->sum(function (Shipment $shipment) {
-                    return $shipment->expenses
-                        ->where('status', 'approved')
-                        ->sum(fn ($expense) => $expense->effective_amount);
-                });
-
-                return [
-                    'mode' => $mode,
-                    'shipments' => $group->count(),
-                    'chargeable_weight' => $group->sum(fn (Shipment $shipment) => $shipment->packages->sum('chargeable_weight_kg')),
-                    'revenue' => $revenue,
-                    'cost' => $cost,
-                    'profit' => $revenue - $cost,
-                ];
-            })
-            ->values();
+        [$from, $to, $rows] = $this->buildShipmentReport('mode', $request);
 
         return view('admin.reports.mode-performance', compact('from', 'to', 'rows'));
+    }
+
+    public function exportShipmentReport(Request $request, string $report, string $format)
+    {
+        abort_unless(in_array($report, ['profitability', 'weight', 'mode'], true), 404);
+        abort_unless(in_array($format, ['pdf', 'excel'], true), 404);
+
+        [$from, $to, $rows] = $this->buildShipmentReport($report, $request);
+
+        if ($format === 'pdf') {
+            return Pdf::loadView('admin.reports.shipments-pdf', [
+                'title' => $this->shipmentReportTitle($report),
+                'report' => $report,
+                'from' => $from,
+                'to' => $to,
+                'rows' => $rows,
+            ])->download('shipment-report-' . $report . '-' . $from->format('Ymd') . '-' . $to->format('Ymd') . '.pdf');
+        }
+
+        return $this->downloadShipmentReportCsv($report, $from, $to, $rows);
     }
 
     public function profitAndLoss(Request $request)
@@ -584,6 +545,143 @@ class ReportController extends Controller
         ];
 
         return view('admin.finance.payroll_summary', compact('from', 'to', 'rows', 'totals'));
+    }
+
+    protected function buildShipmentReport(string $report, Request $request): array
+    {
+        [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
+
+        if ($report === 'profitability') {
+            $shipments = Shipment::with(['agent', 'packages', 'expenses', 'invoices'])
+                ->whereBetween('created_at', [$from, $to])
+                ->get();
+
+            $rows = $shipments->map(function (Shipment $shipment) {
+                $revenue = (float) ($shipment->final_price ?? $shipment->estimated_price);
+                $cost = (float) $shipment->expenses
+                    ->where('status', 'approved')
+                    ->sum(fn ($expense) => $expense->effective_amount);
+
+                return [
+                    'shipment' => $shipment,
+                    'client' => $shipment->agent?->name,
+                    'mode' => $shipment->mode,
+                    'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
+                    'revenue' => $revenue,
+                    'cost' => $cost,
+                    'profit' => $revenue - $cost,
+                ];
+            });
+
+            return [$from, $to, $rows];
+        }
+
+        if ($report === 'weight') {
+            $shipments = Shipment::with(['agent', 'packages'])
+                ->whereBetween('created_at', [$from, $to])
+                ->get();
+
+            $rows = $shipments->map(function (Shipment $shipment) {
+                return [
+                    'shipment' => $shipment,
+                    'client' => $shipment->agent?->name,
+                    'actual_weight' => $shipment->packages->sum('actual_weight_kg'),
+                    'cbm' => $shipment->packages->sum('cbm'),
+                    'volumetric_weight' => $shipment->packages->sum('volumetric_weight_kg'),
+                    'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
+                ];
+            });
+
+            return [$from, $to, $rows];
+        }
+
+        $shipments = Shipment::with(['packages', 'expenses'])
+            ->whereBetween('created_at', [$from, $to])
+            ->get();
+
+        $rows = $shipments
+            ->groupBy('mode')
+            ->map(function (Collection $group, string $mode) {
+                $revenue = (float) $group->sum(fn (Shipment $shipment) => (float) ($shipment->final_price ?? $shipment->estimated_price));
+                $cost = (float) $group->sum(function (Shipment $shipment) {
+                    return $shipment->expenses
+                        ->where('status', 'approved')
+                        ->sum(fn ($expense) => $expense->effective_amount);
+                });
+
+                return [
+                    'mode' => $mode,
+                    'shipments' => $group->count(),
+                    'chargeable_weight' => $group->sum(fn (Shipment $shipment) => $shipment->packages->sum('chargeable_weight_kg')),
+                    'revenue' => $revenue,
+                    'cost' => $cost,
+                    'profit' => $revenue - $cost,
+                ];
+            })
+            ->values();
+
+        return [$from, $to, $rows];
+    }
+
+    protected function shipmentReportTitle(string $report): string
+    {
+        return match ($report) {
+            'profitability' => 'Shipment Profitability',
+            'weight' => 'KG vs CBM Usage',
+            default => 'Air vs Sea Performance',
+        };
+    }
+
+    protected function downloadShipmentReportCsv(string $report, Carbon $from, Carbon $to, Collection $rows): StreamedResponse
+    {
+        $filename = 'shipment-report-' . $report . '-' . $from->format('Ymd') . '-' . $to->format('Ymd') . '.csv';
+
+        return response()->streamDownload(function () use ($report, $rows) {
+            $handle = fopen('php://output', 'w');
+
+            if ($report === 'mode') {
+                fputcsv($handle, ['Mode', 'Shipments', 'Chargeable KG', 'Revenue', 'Cost', 'Profit']);
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        strtoupper(str_replace('_', ' ', $row['mode'])),
+                        $row['shipments'],
+                        number_format($row['chargeable_weight'], 3, '.', ''),
+                        number_format($row['revenue'], 2, '.', ''),
+                        number_format($row['cost'], 2, '.', ''),
+                        number_format($row['profit'], 2, '.', ''),
+                    ]);
+                }
+            } elseif ($report === 'weight') {
+                fputcsv($handle, ['Shipment', 'Client', 'Actual KG', 'CBM', 'Vol KG', 'Charge KG']);
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        $row['shipment']->shipment_no,
+                        $row['client'] ?? '',
+                        number_format($row['actual_weight'], 3, '.', ''),
+                        number_format($row['cbm'], 4, '.', ''),
+                        number_format($row['volumetric_weight'], 3, '.', ''),
+                        number_format($row['chargeable_weight'], 3, '.', ''),
+                    ]);
+                }
+            } else {
+                fputcsv($handle, ['Shipment', 'Client', 'Mode', 'Chargeable KG', 'Revenue', 'Cost', 'Profit']);
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        $row['shipment']->shipment_no,
+                        $row['client'] ?? '',
+                        strtoupper(str_replace('_', ' ', $row['mode'])),
+                        number_format($row['chargeable_weight'], 3, '.', ''),
+                        number_format($row['revenue'], 2, '.', ''),
+                        number_format($row['cost'], 2, '.', ''),
+                        number_format($row['profit'], 2, '.', ''),
+                    ]);
+                }
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     protected function resolveDateRange(Request $request, Carbon $defaultFrom, Carbon $defaultTo): array

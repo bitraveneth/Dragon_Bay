@@ -13,6 +13,7 @@ use App\Models\Shipment;
 use App\Models\ShipmentExpense;
 use App\Models\ShipmentLeg;
 use App\Models\ShipmentPackage;
+use App\Models\ShipmentPod;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Notifications\SystemAlertNotification;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ShipmentController extends Controller
@@ -85,6 +87,7 @@ class ShipmentController extends Controller
             'legs.expenses',
             'expenses.leg',
             'invoices',
+            'pod',
         ]);
 
         return view('admin.shipments.show', [
@@ -188,6 +191,35 @@ class ShipmentController extends Controller
         AuditLog::record('shipment.expense_added', $expense, [], $expense->toArray());
 
         return back()->with('status', 'Shipment expense recorded.');
+    }
+
+    public function storePod(Request $request, Shipment $shipment)
+    {
+        $data = $request->validate([
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'received_by' => 'nullable|string|max:255',
+            'receiver_phone' => 'nullable|string|max:50',
+            'notes' => 'nullable|string',
+            'delivered_at' => 'nullable|date',
+        ]);
+
+        $pod = $shipment->pod;
+        $old = $pod?->only(['document_path', 'received_by', 'receiver_phone', 'notes', 'delivered_at']) ?? [];
+
+        if ($request->hasFile('document')) {
+            if ($pod?->document_path) {
+                Storage::disk('public')->delete($pod->document_path);
+            }
+
+            $data['document_path'] = $request->file('document')->store('shipments/pod', 'public');
+        }
+
+        unset($data['document']);
+
+        $pod = $shipment->pod()->updateOrCreate([], $data);
+        AuditLog::record('shipment.pod_saved', $pod, $old, $pod->only(['document_path', 'received_by', 'receiver_phone', 'notes', 'delivered_at']));
+
+        return back()->with('status', 'Shipment POD saved.');
     }
 
     public function approveExpense(Request $request, Shipment $shipment, ShipmentExpense $expense)

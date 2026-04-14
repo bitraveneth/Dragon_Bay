@@ -6,17 +6,29 @@
             <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $title }}</h1>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $subtitle }}</p>
         </div>
-        <form method="GET" class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-end">
-            <div>
-                <label class="mb-1 block text-xs font-medium text-gray-500">From</label>
-                <input type="date" name="from" value="{{ request('from', $from->format('Y-m-d')) }}" class="rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+        <div class="flex flex-col gap-3">
+            <form method="GET" class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-end">
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-500">From</label>
+                    <input type="date" name="from" value="{{ request('from', $from->format('Y-m-d')) }}" class="rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-500">To</label>
+                    <input type="date" name="to" value="{{ request('to', $to->format('Y-m-d')) }}" class="rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-gray-900">Apply</button>
+            </form>
+            <div class="flex flex-wrap justify-end gap-2">
+                <a href="{{ route('admin.reports.shipments.export', ['report' => $type, 'format' => 'excel', 'from' => request('from', $from->format('Y-m-d')), 'to' => request('to', $to->format('Y-m-d'))]) }}"
+                   class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                    Export Excel
+                </a>
+                <a href="{{ route('admin.reports.shipments.export', ['report' => $type, 'format' => 'pdf', 'from' => request('from', $from->format('Y-m-d')), 'to' => request('to', $to->format('Y-m-d'))]) }}"
+                   class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                    Export PDF
+                </a>
             </div>
-            <div>
-                <label class="mb-1 block text-xs font-medium text-gray-500">To</label>
-                <input type="date" name="to" value="{{ request('to', $to->format('Y-m-d')) }}" class="rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-            </div>
-            <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-gray-900">Apply</button>
-        </form>
+        </div>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">

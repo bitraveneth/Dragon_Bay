@@ -103,6 +103,16 @@ class Shipment extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function pod()
+    {
+        return $this->hasOne(ShipmentPod::class);
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'agent_id');
+    }
+
     public function getTotalActualWeightKgAttribute(): float
     {
         return (float) $this->packages->sum('actual_weight_kg');
