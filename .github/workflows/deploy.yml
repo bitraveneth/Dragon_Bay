@@ -3,11 +3,11 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - test
+      - ashraf
   workflow_dispatch:
 
 concurrency:
-  group: deploy-test
+  group: deploy-ashraf
   cancel-in-progress: false
 
 jobs:
