@@ -1,8 +1,10 @@
 @php
     use App\Helpers\MenuHelper;
     use App\Helpers\Permission;
-    $menuGroups = MenuHelper::getMenuGroups();
     $authUser = auth()->user();
+    $menuGroups = ($authUser?->role === 'client')
+        ? MenuHelper::getClientMenu()
+        : MenuHelper::getMenuGroups();
     $isValidPath = fn (?string $path): bool => MenuHelper::isValidMenuPath($path);
 
     $menuGroups = collect($menuGroups)

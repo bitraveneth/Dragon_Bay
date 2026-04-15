@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureClientPortalUser
@@ -13,8 +14,12 @@ class EnsureClientPortalUser
         $user = $request->user();
 
         if (! $user || ! $user->client_id) {
-            return response('Forbidden', 403);
+            abort(403, 'Access denied. Client account required.');
         }
+
+        // Share $client with all portal views and the app layout
+        $client = $user->client;
+        View::share('client', $client);
 
         return $next($request);
     }

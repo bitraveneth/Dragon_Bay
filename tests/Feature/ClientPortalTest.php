@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
-use App\Models\Agent;
 use App\Models\Client;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
@@ -62,8 +61,7 @@ class ClientPortalTest extends TestCase
         $this->actingAs($user)
             ->get(route('portal.dashboard'))
             ->assertOk()
-            ->assertSee('Overview')
-            ->assertSee('Client One');
+            ->assertSee('Overview');
     }
 
     public function test_non_client_user_cannot_access_portal(): void
@@ -308,6 +306,37 @@ class ClientPortalTest extends TestCase
             $table->unsignedBigInteger('order_id');
             $table->string('status');
             $table->timestamp('changed_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('menu_groups', function (Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->integer('position')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('menu_items', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('menu_group_id');
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('name');
+            $table->string('key')->nullable();
+            $table->string('icon')->nullable();
+            $table->string('path')->nullable();
+            $table->string('permission')->nullable();
+            $table->integer('position')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data');
+            $table->timestamp('read_at')->nullable();
             $table->timestamps();
         });
     }

@@ -196,6 +196,68 @@ class MenuHelper
     }
 
     /**
+     * Restricted menu for client portal users (role = client).
+     */
+    public static function getClientMenu(): array
+    {
+        return [
+            [
+                'title' => 'Overview',
+                'items' => [
+                    ['name' => 'Dashboard',  'icon' => 'dashboard', 'path' => '/portal'],
+                ],
+            ],
+            [
+                'title' => 'My Shipments',
+                'items' => [
+                    [
+                        'name'     => 'Shipments',
+                        'icon'     => 'shipments',
+                        'path'     => '#',
+                        'subItems' => [
+                            ['name' => 'All Shipments', 'path' => '/portal/shipments'],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'My Orders',
+                'items' => [
+                    [
+                        'name'     => 'Orders',
+                        'icon'     => 'orders',
+                        'path'     => '#',
+                        'subItems' => [
+                            ['name' => 'All Orders', 'path' => '/portal/orders'],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Finance',
+                'items' => [
+                    [
+                        'name'     => 'Finance & Billing',
+                        'icon'     => 'accounting',
+                        'path'     => '#',
+                        'subItems' => [
+                            ['name' => 'Invoices',  'path' => '/portal/invoices'],
+                            ['name' => 'Statement', 'path' => '/portal/statement'],
+                            ['name' => 'Deliveries','path' => '/portal/deliveries'],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Account',
+                'items' => [
+                    ['name' => 'Profile', 'icon' => 'agents', 'path' => '/portal/profile'],
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Static menu structure used for seeding and as a fallback
      * when no menu_groups records exist yet.
      */

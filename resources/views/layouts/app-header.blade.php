@@ -254,7 +254,7 @@
                 </button>
 
                 {{-- Alerts dropdown (behaviour handled by resources/js/app.js via .header-alert / .header-alert-toggle) --}}
-                @auth
+                @auth @if(auth()->user()->role !== 'client')
                     @php
                         $alertCollection = isset($headerAlerts)
                             ? collect($headerAlerts)
@@ -389,7 +389,7 @@
                             </div>
                         </div>
                     </div>
-                @endauth
+                @endif @endauth
             </div>
 
             {{-- User dropdown --}}
@@ -403,6 +403,7 @@
                     $roleLabels = [
                         'super_admin' => 'SUPER ADMIN',
                         'admin' => 'ADMIN',
+                        'client' => 'CLIENT',
                         'purchase_executive' => 'PURCHASE EXECUTIVE',
                         'warehouse_officer' => 'WAREHOUSE OFFICER',
                         'production_officer' => 'PRODUCTION OFFICER',
@@ -465,10 +466,17 @@
 
                         <ul class="mb-2 space-y-1 text-[13px] text-gray-700 dark:text-gray-300">
                             <li>
-                                <a href="{{ route('admin.profile.edit') }}"
-                                    class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
-                                    <span>Edit profile</span>
-                                </a>
+                                @if(auth()->user()->role === 'client')
+                                    <a href="{{ route('portal.profile') }}"
+                                        class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
+                                        <span>My profile</span>
+                                    </a>
+                                @else
+                                    <a href="{{ route('admin.profile.edit') }}"
+                                        class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
+                                        <span>Edit profile</span>
+                                    </a>
+                                @endif
                             </li>
                         </ul>
 
