@@ -735,8 +735,9 @@ class MenuHelper
         $pathMap = [
             '/admin/products' => 'Catalog',
             '/admin/products-price-list' => 'Rate cards',
-            '/admin/agents' => 'Clients',
-            '/admin/commission-rules' => 'Client pricing rules',
+            '/admin/clients' => 'Clients',
+            '/admin/agents' => 'Agents',
+            '/admin/commission-rules' => 'Commission rules',
             '/admin/suppliers' => 'Vendors',
             '/admin/purchase-orders' => 'Vendor purchase orders',
             '/admin/warehouses' => 'Hubs & warehouses',

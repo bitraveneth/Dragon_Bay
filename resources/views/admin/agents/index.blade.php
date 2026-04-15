@@ -6,10 +6,10 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">
-                Client Directory
+                Agent Directory
             </h1>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                List, search, and manage your client accounts.
+                List, search, and manage your agent accounts.
             </p>
         </div>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">

@@ -1,0 +1,219 @@
+name: Deploy to VPS
+
+# ──────────────────────────────────────────────
+# Triggers: push to ashraf branch OR manual run
+# ──────────────────────────────────────────────
+on:
+  push:
+    branches: [ashraf]
+  workflow_dispatch:
+
+# Prevent overlapping deploys
+concurrency:
+  group: deploy-ashraf
+  cancel-in-progress: false
+
+jobs:
+
+  # ════════════════════════════════════════════
+  # JOB 1 — Validate (tests + build assets)
+  # ════════════════════════════════════════════
+  validate:
+    name: Run Tests & Build Assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      APP_ENV: testing
+      CACHE_DRIVER: array
+      DB_CONNECTION: sqlite
+      DB_DATABASE: database/database.sqlite
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          mkdir -p database && touch database/database.sqlite
+          php artisan key:generate
+
+      - name: Run PHPUnit tests
+        run: php artisan test
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets (Vite)
+        run: npm run build
+
+      - name: Upload built assets for deploy job
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-public-assets
+          path: public/build
+
+  # ════════════════════════════════════════════
+  # JOB 2 — Deploy (only runs if tests passed)
+  # ════════════════════════════════════════════
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: validate          # blocks until validate succeeds
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download built assets from validate job
+        uses: actions/download-artifact@v4
+        with:
+          name: built-public-assets
+          path: public/build
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust VPS host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Ensure deploy path exists on VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: ssh "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_PATH'"
+
+      - name: Sync files to VPS (rsync)
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git/'                  \
+            --exclude '.github/'               \
+            --exclude '.env'                   \
+            --exclude '.env.*'                 \
+            --exclude 'node_modules/'          \
+            --exclude 'vendor/'                \
+            --exclude 'public/hot'             \
+            --exclude 'storage/'               \
+            --exclude 'bootstrap/cache/'       \
+            --exclude 'tests/'                 \
+            --exclude 'docs/'                  \
+            --exclude '.phpunit.result.cache'  \
+            ./ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+
+      - name: Run deploy steps on VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "bash -se" <<'EOF'
+            set -Eeuo pipefail
+
+            # Helper: print a visible step header
+            step() { echo; echo "══════ $1 ══════"; }
+
+            # Auto-bring app back up if something fails mid-deploy
+            APP_DOWN=0
+            trap '[ "$APP_DOWN" -eq 1 ] && php artisan up || true' EXIT
+
+            step "Enter project directory"
+            cd "$VPS_PATH"
+
+            step "Ensure Laravel scheduler cron"
+            MARKER="# erp-dragonbay-scheduler"
+            ENTRY="* * * * * cd \"$VPS_PATH\" && php artisan schedule:run >> /dev/null 2>&1 $MARKER"
+            ( crontab -l 2>/dev/null | grep -v "$MARKER" || true; echo "$ENTRY" ) | crontab -
+
+            step "Ensure .env file"
+            [ ! -f .env ] && [ -f .env.example ] && cp .env.example .env && echo ".env created" || echo ".env exists"
+
+            step "Ensure APP_KEY is set"
+            grep -q '^APP_KEY=$' .env 2>/dev/null && php artisan key:generate --force || echo "APP_KEY already set"
+
+            step "Force APP_DEBUG=false"
+            grep -q '^APP_DEBUG=' .env \
+              && sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env \
+              || echo 'APP_DEBUG=false' >> .env
+
+            step "Install PHP dependencies (production)"
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            step "Remove stale Vite hot file"
+            rm -f public/hot
+
+            step "Enable maintenance mode"
+            php artisan down --retry=60 || true
+            APP_DOWN=1
+
+            step "Run database migrations"
+            php artisan migrate --force
+
+            step "Seed permissions"
+            php artisan db:seed --class="Database\Seeders\Users\PermissionsSeeder" --force
+
+            step "Clear & rebuild Laravel caches"
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            step "Ensure storage symlink"
+            if [ -L public/storage ]; then
+              echo "Symlink already exists"
+            elif [ -e public/storage ]; then
+              echo "WARNING: public/storage exists but is not a symlink — skipping"
+            else
+              php artisan storage:link
+            fi
+
+            step "Fix storage & cache permissions"
+            chown -R www-data:www-data storage bootstrap/cache || sudo chown -R www-data:www-data storage bootstrap/cache || true
+            find storage bootstrap/cache -type d -exec chmod 775 {} \;
+            find storage bootstrap/cache -type f -exec chmod 664 {} \;
+
+            step "Disable maintenance mode"
+            php artisan up
+            APP_DOWN=0
+
+            echo
+            echo "✓ Deploy completed successfully"
+          EOF
