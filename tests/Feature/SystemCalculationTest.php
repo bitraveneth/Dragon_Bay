@@ -43,6 +43,7 @@ use App\Support\DatabaseBackupManager;
 use App\Models\TaxClass;
 use App\Models\User;
 use App\Services\ErpNotificationService;
+use Database\Seeders\Users\PermissionsSeeder;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Schema\Blueprint;
@@ -4263,6 +4264,42 @@ class SystemCalculationTest extends TestCase
         ]);
     }
 
+    public function test_permissions_seeder_preserves_existing_role_permission_customizations(): void
+    {
+        Permission::create([
+            'name' => 'inventory.manage',
+            'label' => 'Old inventory label',
+            'group' => 'Inventory',
+        ]);
+
+        DB::table('role_permissions')->insert([
+            'role' => 'warehouse_officer',
+            'permission_name' => 'inventory.manage',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->seed(PermissionsSeeder::class);
+
+        $this->assertDatabaseHas('permissions', [
+            'name' => 'inventory.manage',
+            'label' => 'Manage inventory & stock movements',
+            'group' => 'Inventory & Stock',
+        ]);
+        $this->assertDatabaseHas('role_permissions', [
+            'role' => 'warehouse_officer',
+            'permission_name' => 'inventory.manage',
+        ]);
+        $this->assertDatabaseMissing('role_permissions', [
+            'role' => 'delivery_coordinator',
+            'permission_name' => 'inventory.manage',
+        ]);
+        $this->assertDatabaseHas('role_permissions', [
+            'role' => 'sales_officer',
+            'permission_name' => 'logistics.shipments',
+        ]);
+    }
+
     public function test_supplier_return_index_respects_warehouse_scope(): void
     {
         $user = User::create([
@@ -5808,6 +5845,118 @@ class SystemCalculationTest extends TestCase
             'menu_group_id' => $groupId,
             'name' => 'Settings',
             'path' => '/admin/settings',
+        ]);
+    }
+
+    public function test_menu_manager_validates_permission_keys_parent_group_and_visibility_toggles(): void
+    {
+        $user = User::create([
+            'name' => 'Navigation Manager',
+            'email' => 'navigation-manager@example.test',
+            'password' => 'secret',
+            'role' => 'accounts_officer',
+        ]);
+
+        DB::table('role_permissions')->insert([
+            'role' => 'accounts_officer',
+            'permission_name' => 'permissions.manage',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Permission::create([
+            'name' => 'reports.view',
+            'label' => 'View reports',
+            'group' => 'Reports & Analytics',
+        ]);
+
+        $reportsGroupId = DB::table('menu_groups')->insertGetId([
+            'title' => 'Reports',
+            'key' => 'reports',
+            'position' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $systemGroupId = DB::table('menu_groups')->insertGetId([
+            'title' => 'System',
+            'key' => 'system',
+            'position' => 2,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $parentItemId = DB::table('menu_items')->insertGetId([
+            'menu_group_id' => $reportsGroupId,
+            'parent_id' => null,
+            'name' => 'Reports',
+            'key' => 'Reports',
+            'path' => '#',
+            'permission' => 'reports.view',
+            'position' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $invalidPermissionResponse = $this->actingAs($user)
+            ->from(route('admin.menu.index'))
+            ->post(route('admin.menu.items.store'), [
+                'menu_group_id' => $reportsGroupId,
+                'name' => 'Invalid Permission',
+                'path' => '/admin/reports-dashboard',
+                'permission' => 'missing.permission',
+            ]);
+
+        $invalidPermissionResponse->assertSessionHasErrors('permission');
+
+        $wrongParentGroupResponse = $this->actingAs($user)
+            ->from(route('admin.menu.index'))
+            ->post(route('admin.menu.items.store'), [
+                'menu_group_id' => $systemGroupId,
+                'parent_id' => $parentItemId,
+                'name' => 'Cross Group Child',
+                'path' => '/admin/reports-dashboard',
+                'permission' => 'reports.view',
+            ]);
+
+        $wrongParentGroupResponse->assertSessionHasErrors('parent_id');
+
+        $validChildResponse = $this->actingAs($user)
+            ->from(route('admin.menu.index'))
+            ->post(route('admin.menu.items.store'), [
+                'menu_group_id' => $reportsGroupId,
+                'parent_id' => $parentItemId,
+                'name' => 'Reports Dashboard',
+                'path' => '/admin/reports-dashboard',
+                'permission' => 'reports.view',
+            ]);
+
+        $validChildResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('menu_items', [
+            'menu_group_id' => $reportsGroupId,
+            'parent_id' => $parentItemId,
+            'name' => 'Reports Dashboard',
+            'permission' => 'reports.view',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.menu.groups.toggle', $reportsGroupId))
+            ->assertRedirect(route('admin.menu.index'));
+        $this->assertDatabaseHas('menu_groups', [
+            'id' => $reportsGroupId,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.menu.items.toggle', $parentItemId))
+            ->assertRedirect(route('admin.menu.index'));
+        $this->assertDatabaseHas('menu_items', [
+            'id' => $parentItemId,
+            'is_active' => false,
         ]);
     }
 

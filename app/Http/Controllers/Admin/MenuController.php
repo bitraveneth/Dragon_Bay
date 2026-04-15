@@ -108,9 +108,10 @@ class MenuController extends Controller
             'name'          => 'required|string|max:100',
             'icon'          => 'nullable|string|max:50',
             'path'          => 'nullable|string|max:255',
-            'permission'    => 'nullable|string|max:100',
+            'permission'    => 'nullable|exists:permissions,name',
         ]);
 
+        $this->assertParentBelongsToGroup($data['parent_id'] ?? null, (int) $data['menu_group_id']);
         $this->assertValidMenuPath($data['path'] ?? null);
 
         $position = (MenuItem::where('menu_group_id', $data['menu_group_id'])
@@ -139,7 +140,7 @@ class MenuController extends Controller
         $data = $request->validate([
             'name'       => 'nullable|string|max:100',
             'path'       => 'nullable|string|max:255',
-            'permission' => 'nullable|string|max:100',
+            'permission' => 'nullable|exists:permissions,name',
         ]);
 
         if (array_key_exists('path', $data)) {
@@ -160,6 +161,17 @@ class MenuController extends Controller
         return redirect()->route('admin.menu.index')->with('status', 'Menu item updated.');
     }
 
+    public function toggleGroup(MenuGroup $group)
+    {
+        $this->ensureCanManageMenu();
+
+        $group->is_active = ! $group->is_active;
+        $group->save();
+
+        return redirect()->route('admin.menu.index')
+            ->with('status', $group->is_active ? 'Group shown in navigation.' : 'Group hidden from navigation.');
+    }
+
     public function deleteItem(MenuItem $item)
     {
         $this->ensureCanManageMenu();
@@ -167,6 +179,17 @@ class MenuController extends Controller
         $item->delete();
 
         return redirect()->route('admin.menu.index')->with('status', 'Menu item deleted.');
+    }
+
+    public function toggleItem(MenuItem $item)
+    {
+        $this->ensureCanManageMenu();
+
+        $item->is_active = ! $item->is_active;
+        $item->save();
+
+        return redirect()->route('admin.menu.index')
+            ->with('status', $item->is_active ? 'Menu item shown in navigation.' : 'Menu item hidden from navigation.');
     }
 
     public function moveItem(Request $request, MenuItem $item)
@@ -242,6 +265,23 @@ class MenuController extends Controller
 
         throw ValidationException::withMessages([
             'path' => 'Menu path must be a valid admin URL, `#`, or a non-admin external/internal link.',
+        ]);
+    }
+
+    protected function assertParentBelongsToGroup(?int $parentId, int $groupId): void
+    {
+        if (! $parentId) {
+            return;
+        }
+
+        $parent = MenuItem::find($parentId);
+
+        if ($parent && (int) $parent->menu_group_id === $groupId) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'parent_id' => 'Parent menu item must belong to the selected group.',
         ]);
     }
 }

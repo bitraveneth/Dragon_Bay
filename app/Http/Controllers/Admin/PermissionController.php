@@ -23,9 +23,11 @@ class PermissionController extends Controller
         'inventory & stock' => 'Inventory & Stock',
         'production & qc' => 'Production & QC',
         'sales & returns' => 'Sales & Returns',
+        'logistics' => 'Logistics',
         'accounting & finance' => 'Accounting & Finance',
         'reports & analytics' => 'Reports & Analytics',
         'system' => 'System',
+        'audit & logs' => 'Audit & Logs',
     ];
 
     protected array $groupOrder = [
@@ -35,9 +37,11 @@ class PermissionController extends Controller
         'Inventory & Stock',
         'Production & QC',
         'Sales & Returns',
+        'Logistics',
         'Accounting & Finance',
         'Reports & Analytics',
         'System',
+        'Audit & Logs',
         'Other',
     ];
 

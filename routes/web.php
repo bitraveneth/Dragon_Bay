@@ -156,10 +156,12 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::get('menu', [MenuController::class, 'index'])->middleware('perm:permissions.manage')->name('menu.index');
     Route::post('menu/groups', [MenuController::class, 'storeGroup'])->middleware('perm:permissions.manage')->name('menu.groups.store');
     Route::patch('menu/groups/{group}', [MenuController::class, 'updateGroup'])->middleware('perm:permissions.manage')->name('menu.groups.update');
+    Route::patch('menu/groups/{group}/toggle', [MenuController::class, 'toggleGroup'])->middleware('perm:permissions.manage')->name('menu.groups.toggle');
     Route::delete('menu/groups/{group}', [MenuController::class, 'deleteGroup'])->middleware('perm:permissions.manage')->name('menu.groups.delete');
     Route::post('menu/groups/{group}/move', [MenuController::class, 'moveGroup'])->middleware('perm:permissions.manage')->name('menu.groups.move');
     Route::post('menu/items', [MenuController::class, 'storeItem'])->middleware('perm:permissions.manage')->name('menu.items.store');
     Route::patch('menu/items/{item}', [MenuController::class, 'updateItem'])->middleware('perm:permissions.manage')->name('menu.items.update');
+    Route::patch('menu/items/{item}/toggle', [MenuController::class, 'toggleItem'])->middleware('perm:permissions.manage')->name('menu.items.toggle');
     Route::delete('menu/items/{item}', [MenuController::class, 'deleteItem'])->middleware('perm:permissions.manage')->name('menu.items.delete');
     Route::post('menu/items/{item}/move', [MenuController::class, 'moveItem'])->middleware('perm:permissions.manage')->name('menu.items.move');
     Route::post('menu/items/{item}/move-group', [MenuController::class, 'moveItemGroup'])->middleware('perm:permissions.manage')->name('menu.items.move-group');

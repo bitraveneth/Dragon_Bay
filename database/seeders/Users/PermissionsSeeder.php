@@ -9,8 +9,8 @@ use Illuminate\Database\Seeder;
 /**
  * Seed initial permissions and role → permission mappings.
  *
- * Super admin and admin are treated as having all permissions in code,
- * but we still seed mappings for other roles.
+ * Existing role-permission mappings are not reset on later runs, because
+ * production admins can manage those assignments from the UI.
  */
 class PermissionsSeeder extends Seeder
 {
@@ -212,35 +212,26 @@ class PermissionsSeeder extends Seeder
             ],
         ];
 
-        $permissionNames = array_column($definitions, 'name');
+        $seedAllDefaultMappings = ! Permission::query()->exists()
+            && ! RolePermission::query()->exists();
 
         foreach ($definitions as $def) {
-            Permission::updateOrCreate(
+            $permission = Permission::updateOrCreate(
                 ['name' => $def['name']],
                 [
                     'label' => $def['label'],
                     'group' => $def['group'],
                 ]
             );
-        }
 
-        // Rebuild role-permission mappings for the managed permission set.
-        RolePermission::whereIn('permission_name', $permissionNames)->delete();
-
-        $rows = [];
-        foreach ($definitions as $def) {
-            foreach (array_unique($def['roles']) as $role) {
-                $rows[] = [
-                    'role' => $role,
-                    'permission_name' => $def['name'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+            if ($seedAllDefaultMappings || $permission->wasRecentlyCreated) {
+                foreach (array_unique($def['roles']) as $role) {
+                    RolePermission::firstOrCreate([
+                        'role' => $role,
+                        'permission_name' => $def['name'],
+                    ]);
+                }
             }
-        }
-
-        if (! empty($rows)) {
-            RolePermission::insert($rows);
         }
     }
 }

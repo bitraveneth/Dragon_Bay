@@ -24,7 +24,7 @@
             @click="showCreatePermission = true"
             class="inline-flex items-center rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-white shadow-theme-xs hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         >
-            Add Permission Key
+            Add Permission
         </button>
     </div>
 
@@ -46,7 +46,7 @@
             <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ $totalPermissions }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-gray-900">
-            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Modules</p>
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Permission Groups</p>
             <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ $totalGroups }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-gray-900">
@@ -226,27 +226,27 @@
         x-cloak
         @keydown.escape.window="showAdvancedMatrix = false"
         @click.self="showAdvancedMatrix = false"
-        class="fixed inset-0 z-[10000] flex items-center justify-center bg-gray-900/70 p-4"
+        class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/70 p-2 sm:p-4"
     >
         <div
             x-show="showAdvancedMatrix"
             x-transition
-            class="flex h-[92vh] w-full flex-col rounded-2xl border border-gray-200 bg-white shadow-theme-lg dark:border-gray-700 dark:bg-gray-900"
+            class="flex h-[92vh] w-full max-w-[calc(100vw-1rem)] flex-col rounded-lg border border-gray-200 bg-white shadow-theme-lg dark:border-gray-700 dark:bg-gray-900 sm:max-w-[calc(100vw-2rem)] xl:max-w-[96vw]"
         >
-            <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-                <div>
+            <div class="flex items-start justify-between gap-3 border-b border-gray-200 px-3 py-3 dark:border-gray-700 sm:px-5 sm:py-4">
+                <div class="min-w-0">
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Advanced Matrix (All Roles)</h2>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Toggle role-level permissions for all roles from one popup.</p>
                 </div>
-                <button type="button" @click="showAdvancedMatrix = false" class="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+                <button type="button" @click="showAdvancedMatrix = false" class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-hidden p-5">
-                <div class="mb-3">
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-5">
+                <div class="mb-3 shrink-0">
                     <input
                         type="text"
                         x-model="matrixSearch"
@@ -255,7 +255,7 @@
                     >
                 </div>
 
-                <form method="POST" action="{{ route('admin.permissions.roles.update') }}" class="flex h-full flex-col">
+                <form method="POST" action="{{ route('admin.permissions.roles.update') }}" class="flex min-h-0 flex-1 flex-col">
                     @csrf
                     @foreach($roles as $roleKey => $roleLabel)
                         @if($roleKey !== 'super_admin')
@@ -263,7 +263,7 @@
                         @endif
                     @endforeach
                     <div class="min-h-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table class="min-w-full text-xs">
+                        <table class="min-w-[980px] text-xs">
                             <thead class="sticky top-0 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                                 <tr>
                                     <th class="px-3 py-2 text-left">Permission</th>
@@ -277,8 +277,8 @@
                                 @foreach($permissions as $permission)
                                     @php $matrixHaystack = strtolower($permission->label . ' ' . $permission->name); @endphp
                                     <tr x-show="matrixSearch === '' || @js($matrixHaystack).includes(matrixSearch.toLowerCase())">
-                                        <td class="px-3 py-2 text-gray-900 dark:text-white">{{ $permission->label }}</td>
-                                        <td class="px-3 py-2 font-mono text-[11px] text-gray-500 dark:text-gray-400">{{ $permission->name }}</td>
+                                        <td class="w-56 px-3 py-2 text-gray-900 dark:text-white">{{ $permission->label }}</td>
+                                        <td class="w-48 px-3 py-2 font-mono text-[11px] text-gray-500 dark:text-gray-400">{{ $permission->name }}</td>
                                         @foreach($roles as $roleKey => $roleLabel)
                                             @php $allowed = in_array($permission->name, $rolePermissions[$roleKey] ?? []); @endphp
                                             <td class="px-2 py-2 text-center">
@@ -301,7 +301,7 @@
                         </table>
                     </div>
 
-                    <div class="mt-3 flex items-center justify-end gap-2">
+                    <div class="mt-3 flex shrink-0 items-center justify-end gap-2 border-t border-gray-200 bg-white pt-3 dark:border-gray-700 dark:bg-gray-900">
                         <button
                             type="button"
                             @click="showAdvancedMatrix = false"
@@ -342,7 +342,7 @@
             class="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-lg dark:border-gray-700 dark:bg-gray-900"
         >
             <div class="flex items-center justify-between">
-                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add Permission Key</h2>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add Permission</h2>
                 <button type="button" @click="showCreatePermission = false" class="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
