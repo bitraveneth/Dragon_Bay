@@ -145,23 +145,23 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PATH: ${{ secrets.VPS_PATH }}
         run: |
-          ssh "$VPS_USER@$VPS_HOST" "bash -se" <<'EOF'
+          ssh "$VPS_USER@$VPS_HOST" "bash -se" <<EOF
             set -Eeuo pipefail
 
             # Helper: print a visible step header
-            step() { echo; echo "══════ $1 ══════"; }
+            step() { echo; echo "══════ \$1 ══════"; }
 
             # Auto-bring app back up if something fails mid-deploy
             APP_DOWN=0
-            trap '[ "$APP_DOWN" -eq 1 ] && php artisan up || true' EXIT
+            trap '[ "\$APP_DOWN" -eq 1 ] && php artisan up || true' EXIT
 
             step "Enter project directory"
             cd "$VPS_PATH"
 
             step "Ensure Laravel scheduler cron"
             MARKER="# erp-dragonbay-scheduler"
-            ENTRY="* * * * * cd \"$VPS_PATH\" && php artisan schedule:run >> /dev/null 2>&1 $MARKER"
-            ( crontab -l 2>/dev/null | grep -v "$MARKER" || true; echo "$ENTRY" ) | crontab -
+            ENTRY="* * * * * cd \"$VPS_PATH\" && php artisan schedule:run >> /dev/null 2>&1 \$MARKER"
+            ( crontab -l 2>/dev/null | grep -v "\$MARKER" || true; echo "\$ENTRY" ) | crontab -
 
             step "Ensure .env file"
             [ ! -f .env ] && [ -f .env.example ] && cp .env.example .env && echo ".env created" || echo ".env exists"
@@ -188,7 +188,7 @@ jobs:
             php artisan migrate --force
 
             step "Seed permissions"
-            php artisan db:seed --class="Database\Seeders\Users\PermissionsSeeder" --force
+            php artisan db:seed --class="Database\\Seeders\\Users\\PermissionsSeeder" --force
 
             step "Clear & rebuild Laravel caches"
             php artisan optimize:clear
@@ -215,5 +215,5 @@ jobs:
             APP_DOWN=0
 
             echo
-            echo "✓ Deploy completed successfully"
+            echo "Deploy completed successfully"
           EOF
