@@ -3,6 +3,7 @@
 @section('title', 'Order #' . $order->id)
 
 @section('content')
+@php($currencyCode = strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
 <div class="space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
@@ -14,7 +15,7 @@
 
     <div class="grid gap-4 md:grid-cols-3">
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Delivery Date</div><div class="mt-2 text-lg font-semibold">{{ $order->delivery_date?->format('d M Y') ?: '-' }}</div></div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Total</div><div class="mt-2 text-lg font-semibold">BDT {{ number_format((float) $order->total, 2) }}</div></div>
+        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Total</div><div class="mt-2 text-lg font-semibold">{{ $currencyCode }} {{ number_format((float) $order->total, 2) }}</div></div>
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Shipment</div><div class="mt-2 text-lg font-semibold">{{ $order->shipment?->shipment_no ?: 'Pending' }}</div></div>
     </div>
 
@@ -35,8 +36,8 @@
                         <tr>
                             <td class="py-3">{{ $item->product?->name ?: 'Product #' . $item->product_id }}</td>
                             <td class="py-3 text-right">{{ number_format((float) $item->quantity) }}</td>
-                            <td class="py-3 text-right">BDT {{ number_format((float) $item->unit_price, 2) }}</td>
-                            <td class="py-3 text-right">BDT {{ number_format((float) $item->line_total, 2) }}</td>
+                            <td class="py-3 text-right">{{ $currencyCode }} {{ number_format((float) $item->unit_price, 2) }}</td>
+                            <td class="py-3 text-right">{{ $currencyCode }} {{ number_format((float) $item->line_total, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -87,6 +87,9 @@
 @php
     $appName = config('app.name');
     $appInitials = mb_strtoupper(mb_substr($appName, 0, 2));
+    $baseCurrencyCode = \App\Support\Currency::baseCode();
+    $currencyCode = $invoice->currency_code ?? $baseCurrencyCode;
+    $exchangeRate = (float) ($invoice->exchange_rate ?? 1);
 @endphp
 <body>
     <div class="invoice">
@@ -107,6 +110,9 @@
                         <p class="text-muted">Due: {{ $invoice->due_at->format('d M Y') }}</p>
                     @endif
                     <p class="text-muted">Status: {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}</p>
+                    @if($currencyCode !== $baseCurrencyCode)
+                        <p class="text-muted">Currency: {{ $currencyCode }} · 1 {{ $currencyCode }} = {{ number_format($exchangeRate, 6) }} {{ $baseCurrencyCode }}</p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -127,8 +133,8 @@
                 <th style="width:5%;">#</th>
                 <th style="width:45%;">Description</th>
                 <th class="text-right" style="width:10%;">Qty</th>
-                <th class="text-right" style="width:20%;">Unit price (BDT)</th>
-                <th class="text-right" style="width:20%;">Line total (BDT)</th>
+                <th class="text-right" style="width:20%;">Unit price ({{ $currencyCode }})</th>
+                <th class="text-right" style="width:20%;">Line total ({{ $currencyCode }})</th>
             </tr>
         </thead>
         <tbody>
@@ -148,39 +154,39 @@
         <div class="mt-4" style="display:flex; justify-content:flex-end;">
             <table class="totals" style="width:auto; font-size:10px;">
                 <tr>
-                    <td class="text-right">Net total (BDT):</td>
+                    <td class="text-right">Net total ({{ $currencyCode }}):</td>
                     <td class="text-right" style="width:80px;">{{ number_format($invoice->net_total, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">VAT (BDT):</td>
+                    <td class="text-right">VAT ({{ $currencyCode }}):</td>
                     <td class="text-right">{{ number_format($invoice->vat_amount, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Gross total (BDT):</td>
+                    <td class="text-right">Gross total ({{ $currencyCode }}):</td>
                     <td class="text-right">{{ number_format($grossTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Withholding (BDT):</td>
+                    <td class="text-right">Withholding ({{ $currencyCode }}):</td>
                     <td class="text-right">- {{ number_format($invoice->withholding, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Cash due (BDT):</td>
+                    <td class="text-right">Cash due ({{ $currencyCode }}):</td>
                     <td class="text-right">{{ number_format($cashTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Credits (BDT):</td>
+                    <td class="text-right">Credits ({{ $currencyCode }}):</td>
                     <td class="text-right">- {{ number_format($creditsTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Receipts (BDT):</td>
+                    <td class="text-right">Receipts ({{ $currencyCode }}):</td>
                     <td class="text-right">- {{ number_format($receiptsTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right">Advances (BDT):</td>
+                    <td class="text-right">Advances ({{ $currencyCode }}):</td>
                     <td class="text-right">- {{ number_format($advancesTotal ?? 0, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="text-right" style="padding-top:4px; font-weight:600;">Outstanding (BDT):</td>
+                    <td class="text-right" style="padding-top:4px; font-weight:600;">Outstanding ({{ $currencyCode }}):</td>
                     <td class="text-right" style="padding-top:4px; font-weight:600;">
                         {{ number_format(max(0, $outstanding), 2) }}
                     </td>

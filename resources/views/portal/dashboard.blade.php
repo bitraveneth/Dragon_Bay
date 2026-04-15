@@ -151,6 +151,7 @@
             </div>
             <div class="divide-y divide-gray-100 dark:divide-gray-800">
                 @forelse($recentInvoices as $invoice)
+                    @php($invoiceCurrencyCode = $invoice->currency_code ?: strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
                     <a href="{{ route('portal.invoices.show', $invoice) }}"
                        class="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40">
                         <div class="flex items-center gap-3 min-w-0">
@@ -165,7 +166,7 @@
                             </div>
                         </div>
                         <div class="shrink-0 text-right">
-                            <div class="font-semibold text-gray-900 dark:text-white">{{ $client->currency }} {{ number_format($invoice->cash_total, 2) }}</div>
+                            <div class="font-semibold text-gray-900 dark:text-white">{{ $invoiceCurrencyCode }} {{ number_format($invoice->cash_total, 2) }}</div>
                             @php
                                 $statusColor = match($invoice->status) {
                                     'paid'   => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',

@@ -3,6 +3,7 @@
 @section('title', 'Client Profile')
 
 @section('content')
+@php($currencyCode = strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
 <div class="space-y-6">
     <div>
         <h1 class="text-2xl font-semibold">Profile</h1>
@@ -16,7 +17,7 @@
                 <div><div class="text-xs uppercase text-gray-500">Name</div><div class="mt-1">{{ $client->name }}</div></div>
                 <div><div class="text-xs uppercase text-gray-500">Email</div><div class="mt-1">{{ $client->email ?: $user->email }}</div></div>
                 <div><div class="text-xs uppercase text-gray-500">Phone</div><div class="mt-1">{{ $client->phone ?: '-' }}</div></div>
-                <div><div class="text-xs uppercase text-gray-500">Credit Limit</div><div class="mt-1">BDT {{ number_format((float) $client->credit_limit, 2) }}</div></div>
+                <div><div class="text-xs uppercase text-gray-500">Credit Limit</div><div class="mt-1">{{ $currencyCode }} {{ number_format((float) $client->credit_limit, 2) }}</div></div>
                 <div><div class="text-xs uppercase text-gray-500">Area</div><div class="mt-1">{{ $client->area ?: '-' }}</div></div>
                 <div><div class="text-xs uppercase text-gray-500">Zone</div><div class="mt-1">{{ $client->zone ?: '-' }}</div></div>
                 <div><div class="text-xs uppercase text-gray-500">Portal Login</div><div class="mt-1">{{ $user->email }}</div></div>

@@ -15,12 +15,15 @@ class CreditNote extends Model
         'number',
         'issued_at',
         'amount',
+        'currency_code',
+        'exchange_rate',
         'reason',
     ];
 
     protected $casts = [
         'issued_at' => 'date',
         'amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
     ];
 
     public function invoice()
@@ -33,4 +36,3 @@ class CreditNote extends Model
         return $this->belongsTo(Order::class);
     }
 }
-

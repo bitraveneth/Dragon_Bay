@@ -16,6 +16,8 @@ class Invoice extends Model
         'shipment_id',
         'number',
         'invoice_type',
+        'currency_code',
+        'exchange_rate',
         'issued_at',
         'due_at',
         'net_total',
@@ -31,6 +33,7 @@ class Invoice extends Model
         'net_total'   => 'decimal:2',
         'vat_amount'  => 'decimal:2',
         'withholding' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
         'locked_at'   => 'datetime',
     ];
 

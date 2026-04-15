@@ -7,7 +7,9 @@
 
 @section('content')
 @php
-    $currencyCode = config('app.currency', 'BDT');
+    $baseCurrencyCode = \App\Support\Currency::baseCode();
+    $currencyCode = $invoice->currency_code ?? $baseCurrencyCode;
+    $exchangeRate = (float) ($invoice->exchange_rate ?? 1);
 @endphp
 <div class="space-y-8 print-invoice print:!mx-0 print:!w-full print:!max-w-none">
     <!-- Header with gradient (screen only) -->
@@ -61,6 +63,10 @@
                         @if($invoice->due_at)
                             <span class="inline-flex h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700"></span>
                             <span>Due {{ $invoice->due_at->format('d M Y') }}</span>
+                        @endif
+                        @if($currencyCode !== $baseCurrencyCode)
+                            <span class="inline-flex h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-700"></span>
+                            <span>{{ $currencyCode }} invoice · 1 {{ $currencyCode }} = {{ number_format($exchangeRate, 6) }} {{ $baseCurrencyCode }}</span>
                         @endif
                     </div>
                 </div>
@@ -138,6 +144,11 @@
                 <p class="text-xs text-gray-600">
                     Status: {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
                 </p>
+                @if($currencyCode !== $baseCurrencyCode)
+                    <p class="text-xs text-gray-600">
+                        Currency: {{ $currencyCode }} · FX: 1 {{ $currencyCode }} = {{ number_format($exchangeRate, 6) }} {{ $baseCurrencyCode }}
+                    </p>
+                @endif
             </div>
         </div>
     </div>
@@ -395,8 +406,8 @@
                     <th class="border border-gray-300 px-3 py-2 text-left">#</th>
                     <th class="border border-gray-300 px-3 py-2 text-left">Description</th>
                     <th class="border border-gray-300 px-3 py-2 text-right">Qty</th>
-                    <th class="border border-gray-300 px-3 py-2 text-right">Unit Price</th>
-                    <th class="border border-gray-300 px-3 py-2 text-right">Line Total</th>
+                    <th class="border border-gray-300 px-3 py-2 text-right">Unit Price ({{ $currencyCode }})</th>
+                    <th class="border border-gray-300 px-3 py-2 text-right">Line Total ({{ $currencyCode }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -422,39 +433,39 @@
         <div class="mt-6 flex justify-end">
             <table class="print-totals text-[11px]">
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Net total:</td>
+                    <td class="px-0 py-1.5 text-left">Net total ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">{{ number_format($invoice->net_total, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">VAT:</td>
+                    <td class="px-0 py-1.5 text-left">VAT ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">{{ number_format($invoice->vat_amount, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Gross total:</td>
+                    <td class="px-0 py-1.5 text-left">Gross total ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">{{ number_format($grossTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Withholding:</td>
+                    <td class="px-0 py-1.5 text-left">Withholding ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">- {{ number_format($invoice->withholding, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Cash due:</td>
+                    <td class="px-0 py-1.5 text-left">Cash due ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">{{ number_format($cashTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Credits:</td>
+                    <td class="px-0 py-1.5 text-left">Credits ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">- {{ number_format($creditsTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Receipts:</td>
+                    <td class="px-0 py-1.5 text-left">Receipts ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">- {{ number_format($receiptsTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-1.5 text-left">Advances:</td>
+                    <td class="px-0 py-1.5 text-left">Advances ({{ $currencyCode }}):</td>
                     <td class="px-0 py-1.5 text-right">- {{ number_format($advancesTotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="px-0 py-2.5 text-left font-semibold border-t border-gray-300">Outstanding:</td>
+                    <td class="px-0 py-2.5 text-left font-semibold border-t border-gray-300">Outstanding ({{ $currencyCode }}):</td>
                     <td class="px-0 py-2.5 text-right font-semibold border-t border-gray-300">
                         {{ number_format(max(0, $outstanding), 2) }}
                     </td>

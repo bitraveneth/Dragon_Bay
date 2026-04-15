@@ -3,6 +3,7 @@
 @section('title', 'Client Invoices')
 
 @section('content')
+@php($fallbackCurrencyCode = strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
 <div class="space-y-6">
     <div>
         <h1 class="text-2xl font-semibold">Invoices</h1>
@@ -23,12 +24,13 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                     @forelse($invoices as $invoice)
+                        @php($currencyCode = $invoice->currency_code ?: $fallbackCurrencyCode)
                         <tr>
                             <td class="px-4 py-3"><a href="{{ route('portal.invoices.show', $invoice) }}" class="font-medium text-brand-600 dark:text-brand-300">{{ $invoice->number }}</a></td>
                             <td class="px-4 py-3">{{ $invoice->issued_at?->format('d M Y') ?: '-' }}</td>
                             <td class="px-4 py-3">{{ ucfirst($invoice->status) }}</td>
-                            <td class="px-4 py-3 text-right">BDT {{ number_format($invoice->cash_total, 2) }}</td>
-                            <td class="px-4 py-3 text-right">BDT {{ number_format($invoice->outstanding, 2) }}</td>
+                            <td class="px-4 py-3 text-right">{{ $currencyCode }} {{ number_format($invoice->cash_total, 2) }}</td>
+                            <td class="px-4 py-3 text-right">{{ $currencyCode }} {{ number_format($invoice->outstanding, 2) }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No invoices found.</td></tr>

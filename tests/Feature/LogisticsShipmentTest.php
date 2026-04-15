@@ -2,15 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Helpers\SystemSettings;
 use App\Models\Agent;
 use App\Models\AgentCommissionSettlement;
 use App\Models\AuditLog;
+use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Order;
 use App\Models\Receipt;
 use App\Models\Shipment;
+use App\Models\ShipmentExpense;
 use App\Models\ShipmentPackage;
+use App\Models\ShipmentRateCard;
 use App\Models\User;
 use App\Notifications\SystemAlertNotification;
 use Illuminate\Database\Schema\Blueprint;
@@ -32,6 +36,7 @@ class LogisticsShipmentTest extends TestCase
 
         $this->bootInMemorySqlite();
         $this->createMinimalSchema();
+        SystemSettings::flush();
         $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
     }
 
@@ -129,6 +134,155 @@ class LogisticsShipmentTest extends TestCase
         $this->assertGreaterThanOrEqual(2, AuditLog::count());
     }
 
+    public function test_foreign_currency_shipment_invoice_preserves_source_amount_and_posts_base_ledger(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-currency@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Agent One', 'is_active' => true]);
+        $client = Client::create([
+            'name' => 'USD Client',
+            'agent_id' => $agent->id,
+            'currency' => 'USD',
+            'is_active' => true,
+        ]);
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $client->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 0,
+        ]);
+        $shipment = Shipment::create([
+            'order_id' => $order->id,
+            'client_id' => $client->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-USD',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 8,
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $shipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 30,
+            'length_cm' => 50,
+            'width_cm' => 50,
+            'height_cm' => 50,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.pricing.lock', $shipment), [
+                'final_unit_rate' => 12,
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.invoice', $shipment), [
+                'invoice_type' => 'final',
+                'exchange_rate' => 110,
+            ])
+            ->assertRedirect();
+
+        $invoice = Invoice::where('shipment_id', $shipment->id)->firstOrFail();
+        $this->assertEquals('USD', $invoice->currency_code);
+        $this->assertEquals(110.0, (float) $invoice->exchange_rate);
+        $this->assertEquals(360.0, (float) $invoice->net_total);
+
+        $this->assertDatabaseHas('ledger_entries', [
+            'invoice_id' => $invoice->id,
+            'account' => 'Accounts Receivable',
+            'debit' => 39600,
+            'credit' => 0,
+            'currency_code' => 'BDT',
+            'source_currency_code' => 'USD',
+            'source_debit' => 360,
+            'source_credit' => 0,
+        ]);
+        $this->assertDatabaseHas('ledger_entries', [
+            'invoice_id' => $invoice->id,
+            'account' => 'Freight Revenue',
+            'debit' => 0,
+            'credit' => 39600,
+            'currency_code' => 'BDT',
+            'source_currency_code' => 'USD',
+            'source_debit' => 0,
+            'source_credit' => 360,
+        ]);
+    }
+
+    public function test_configured_exchange_rate_is_used_for_foreign_currency_shipment_invoice(): void
+    {
+        SystemSettings::putMany([
+            'currency_code' => 'BDT',
+            'exchange_rate_USD_BDT' => 112.5,
+        ]);
+
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-configured-currency@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Agent One', 'is_active' => true]);
+        $client = Client::create([
+            'name' => 'USD Client',
+            'agent_id' => $agent->id,
+            'currency' => 'USD',
+            'is_active' => true,
+        ]);
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $client->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 0,
+        ]);
+        $shipment = Shipment::create([
+            'order_id' => $order->id,
+            'client_id' => $client->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-USD-SET',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 8,
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $shipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 30,
+            'length_cm' => 50,
+            'width_cm' => 50,
+            'height_cm' => 50,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.pricing.lock', $shipment), [
+                'final_unit_rate' => 12,
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.invoice', $shipment), [
+                'invoice_type' => 'final',
+            ])
+            ->assertRedirect();
+
+        $invoice = Invoice::where('shipment_id', $shipment->id)->firstOrFail();
+        $this->assertEquals('USD', $invoice->currency_code);
+        $this->assertEquals(112.5, (float) $invoice->exchange_rate);
+        $this->assertDatabaseHas('ledger_entries', [
+            'invoice_id' => $invoice->id,
+            'account' => 'Accounts Receivable',
+            'debit' => 40500,
+            'source_debit' => 360,
+            'source_currency_code' => 'USD',
+        ]);
+    }
+
     public function test_shipment_status_change_notifies_operations_staff(): void
     {
         $admin = User::create([
@@ -202,6 +356,200 @@ class LogisticsShipmentTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'shipment.pod_saved',
         ]);
+    }
+
+    public function test_shipment_status_workflow_blocks_skips_and_requires_pod_for_delivery(): void
+    {
+        Storage::fake('public');
+
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-workflow@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+        $shipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-FLOW',
+            'mode' => 'air',
+            'status' => 'draft',
+            'estimated_unit_rate' => 10,
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('admin.shipments.show', $shipment))
+            ->patch(route('admin.shipments.status.update', $shipment), [
+                'status' => 'in_transit',
+            ])
+            ->assertSessionHasErrors('status');
+        $this->assertEquals('draft', $shipment->fresh()->status);
+
+        foreach (['confirmed', 'received_at_origin', 'in_transit', 'customs_clearance', 'out_for_delivery'] as $status) {
+            $this->actingAs($user)
+                ->patch(route('admin.shipments.status.update', $shipment), ['status' => $status])
+                ->assertRedirect();
+            $this->assertEquals($status, $shipment->fresh()->status);
+        }
+
+        $this->actingAs($user)
+            ->from(route('admin.shipments.show', $shipment))
+            ->patch(route('admin.shipments.status.update', $shipment), [
+                'status' => 'delivered',
+            ])
+            ->assertSessionHasErrors('status');
+        $this->assertEquals('out_for_delivery', $shipment->fresh()->status);
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.pod.store', $shipment), [
+                'document' => UploadedFile::fake()->image('pod.jpg'),
+                'received_by' => 'Receiver',
+                'delivered_at' => now()->toDateTimeString(),
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->patch(route('admin.shipments.status.update', $shipment), [
+                'status' => 'delivered',
+            ])
+            ->assertRedirect();
+        $this->assertEquals('delivered', $shipment->fresh()->status);
+    }
+
+    public function test_approved_shipment_expense_posts_landed_cost_ledger_once(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-expense-ledger@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Agent One', 'is_active' => true]);
+        $client = Client::create([
+            'name' => 'Client One',
+            'agent_id' => $agent->id,
+            'is_active' => true,
+        ]);
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $client->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 0,
+        ]);
+        $shipment = Shipment::create([
+            'order_id' => $order->id,
+            'client_id' => $client->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-COST',
+            'mode' => 'ddp',
+            'status' => 'draft',
+            'estimated_unit_rate' => 10,
+        ]);
+        $expense = ShipmentExpense::create([
+            'shipment_id' => $shipment->id,
+            'expense_type' => 'customs_duty',
+            'estimated_amount' => 120,
+            'actual_amount' => 150,
+            'status' => 'submitted',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.expenses.approve', [$shipment, $expense]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ledger_entries', [
+            'shipment_expense_id' => $expense->id,
+            'shipment_id' => $shipment->id,
+            'client_id' => $client->id,
+            'account' => 'Customs & Duty Expense',
+            'debit' => 150,
+            'credit' => 0,
+        ]);
+        $this->assertDatabaseHas('ledger_entries', [
+            'shipment_expense_id' => $expense->id,
+            'shipment_id' => $shipment->id,
+            'client_id' => $client->id,
+            'account' => 'Accrued Logistics Payable',
+            'debit' => 0,
+            'credit' => 150,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('admin.shipments.expenses.approve', [$shipment, $expense]))
+            ->assertRedirect();
+
+        $this->assertEquals(2, LedgerEntry::where('shipment_expense_id', $expense->id)->count());
+    }
+
+    public function test_shipment_uses_best_matching_rate_card_when_manual_rate_is_blank(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-rate-card@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Agent One', 'is_active' => true]);
+        $client = Client::create([
+            'name' => 'Client One',
+            'agent_id' => $agent->id,
+            'is_active' => true,
+        ]);
+
+        ShipmentRateCard::create([
+            'mode' => 'sea_lcl',
+            'origin_country' => 'China',
+            'destination_country' => 'Bangladesh',
+            'billing_unit' => 'cbm',
+            'rate' => 100,
+            'minimum_charge' => 300,
+            'volumetric_divisor' => 6000,
+            'is_active' => true,
+        ]);
+
+        $clientRateCard = ShipmentRateCard::create([
+            'client_id' => $client->id,
+            'mode' => 'sea_lcl',
+            'origin_country' => 'China',
+            'destination_country' => 'Bangladesh',
+            'billing_unit' => 'cbm',
+            'rate' => 150,
+            'minimum_charge' => 500,
+            'volumetric_divisor' => 6000,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->post(route('admin.shipments.store'), [
+                'client_id' => $client->id,
+                'mode' => 'sea_lcl',
+                'origin_country' => 'China',
+                'destination_country' => 'Bangladesh',
+                'estimated_unit_rate' => '',
+            ]);
+
+        $response->assertRedirect();
+        $shipment = Shipment::where('shipment_no', 'like', 'SHP-%')->latest('id')->firstOrFail();
+        $this->assertEquals($agent->id, $shipment->agent_id);
+        $this->assertEquals($clientRateCard->id, $shipment->estimated_rate_card_id);
+        $this->assertEquals('cbm', $shipment->pricing_basis);
+        $this->assertEquals(6000, $shipment->volumetric_divisor);
+        $this->assertEquals(150.0, (float) $shipment->estimated_unit_rate);
+
+        ShipmentPackage::create([
+            'shipment_id' => $shipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 20,
+            'length_cm' => 100,
+            'width_cm' => 100,
+            'height_cm' => 100,
+        ]);
+
+        $shipment = $shipment->fresh();
+        $package = $shipment->packages()->firstOrFail();
+        $this->assertEquals(166.667, (float) $package->volumetric_weight_kg);
+        $this->assertEquals(500.0, (float) $shipment->estimated_price);
     }
 
     public function test_logistics_report_can_export_excel_compatible_csv(): void
@@ -313,6 +661,23 @@ class LogisticsShipmentTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('system_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('clients', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->unsignedBigInteger('agent_id')->nullable();
+            $table->decimal('credit_limit', 15, 2)->default(0);
+            $table->string('currency', 10)->default('BDT');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -326,6 +691,7 @@ class LogisticsShipmentTest extends TestCase
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->string('order_type')->default('regular');
             $table->string('status')->default('draft');
             $table->decimal('total', 14, 2)->default(0);
@@ -336,6 +702,7 @@ class LogisticsShipmentTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('order_id')->nullable();
             $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->string('shipment_no')->unique();
             $table->string('mode');
             $table->string('status')->default('draft');
@@ -346,12 +713,33 @@ class LogisticsShipmentTest extends TestCase
             $table->date('estimated_departure')->nullable();
             $table->date('estimated_arrival')->nullable();
             $table->decimal('estimated_unit_rate', 14, 2)->default(0);
+            $table->unsignedBigInteger('estimated_rate_card_id')->nullable();
+            $table->string('pricing_basis')->default('chargeable_kg');
+            $table->unsignedInteger('volumetric_divisor')->default(5000);
             $table->decimal('final_unit_rate', 14, 2)->nullable();
             $table->decimal('estimated_price', 14, 2)->default(0);
             $table->decimal('final_price', 14, 2)->nullable();
             $table->boolean('pricing_locked')->default(false);
             $table->timestamp('pricing_locked_at')->nullable();
             $table->unsignedBigInteger('pricing_locked_by')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('shipment_rate_cards', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('client_id')->nullable();
+            $table->unsignedBigInteger('agent_id')->nullable();
+            $table->string('mode');
+            $table->string('origin_country')->nullable();
+            $table->string('destination_country')->nullable();
+            $table->string('billing_unit')->default('chargeable_kg');
+            $table->decimal('rate', 14, 2);
+            $table->decimal('minimum_charge', 14, 2)->default(0);
+            $table->unsignedInteger('volumetric_divisor')->default(5000);
+            $table->date('effective_from')->nullable();
+            $table->date('effective_to')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->text('notes')->nullable();
             $table->timestamps();
         });
@@ -416,6 +804,8 @@ class LogisticsShipmentTest extends TestCase
             $table->unsignedBigInteger('shipment_id')->nullable();
             $table->string('number')->unique();
             $table->string('invoice_type')->default('standard');
+            $table->string('currency_code', 10)->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->date('issued_at');
             $table->date('due_at')->nullable();
             $table->decimal('net_total', 14, 2);
@@ -430,6 +820,8 @@ class LogisticsShipmentTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('invoice_id');
             $table->decimal('amount', 14, 2);
+            $table->string('currency_code', 10)->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->string('payment_method')->nullable();
             $table->date('received_at')->nullable();
             $table->text('notes')->nullable();
@@ -443,6 +835,8 @@ class LogisticsShipmentTest extends TestCase
             $table->string('number')->nullable();
             $table->date('issued_at')->nullable();
             $table->decimal('amount', 14, 2)->default(0);
+            $table->string('currency_code', 10)->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->text('reason')->nullable();
             $table->timestamps();
         });
@@ -488,8 +882,16 @@ class LogisticsShipmentTest extends TestCase
             $table->text('description')->nullable();
             $table->decimal('debit', 14, 2)->default(0);
             $table->decimal('credit', 14, 2)->default(0);
+            $table->string('currency_code', 10)->default('BDT');
+            $table->string('source_currency_code', 10)->nullable();
+            $table->decimal('exchange_rate', 18, 6)->default(1);
+            $table->decimal('source_debit', 14, 2)->default(0);
+            $table->decimal('source_credit', 14, 2)->default(0);
             $table->unsignedBigInteger('order_id')->nullable();
             $table->unsignedBigInteger('invoice_id')->nullable();
+            $table->unsignedBigInteger('client_id')->nullable();
+            $table->unsignedBigInteger('shipment_id')->nullable();
+            $table->unsignedBigInteger('shipment_expense_id')->nullable();
             $table->timestamps();
         });
 

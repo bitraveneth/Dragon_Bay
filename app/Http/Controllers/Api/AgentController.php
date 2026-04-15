@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AgentPriceList;
 use App\Models\AgentCommissionRule;
+use App\Models\Client;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -15,6 +16,7 @@ use App\Models\Delivery;
 use App\Models\Invoice;
 use App\Models\Receipt;
 use App\Models\CreditNote;
+use App\Services\ClientCreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -99,12 +101,17 @@ class AgentController extends Controller
             'client_id' => 'required|exists:clients,id',
             'order_type' => 'required|in:regular,bulk,sample,return',
             'delivery_date' => 'nullable|date',
+            'payment_mode' => 'nullable|in:cash,credit,bkash,bank_transfer',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'nullable|numeric|min:0',
         ]);
+
+        if (($data['order_type'] ?? null) === 'bulk' && empty($data['payment_mode'])) {
+            $data['payment_mode'] = 'credit';
+        }
 
         $order = DB::transaction(function () use ($agent, $data) {
             $order = Order::create([
@@ -115,6 +122,7 @@ class AgentController extends Controller
                 'status' => 'confirmed',
                 'total' => 0,
                 'notes' => $data['notes'] ?? null,
+                'payment_mode' => $data['payment_mode'] ?? null,
             ]);
 
             OrderStatusHistory::create([
@@ -238,9 +246,18 @@ class AgentController extends Controller
                 }
             }
 
+            if ($this->usesCredit($data['payment_mode'] ?? null, $data['order_type'])) {
+                $client = Client::find($data['client_id']);
+                if ($client) {
+                    app(ClientCreditService::class)->ensureWithinLimit($client, (float) $total, $order);
+                }
+            }
+
             $order->update([
                 'total' => $total,
                 'commission_total' => $commissionTotal,
+                'payment_mode' => $data['payment_mode'] ?? null,
+                'is_credit_used' => $this->usesCredit($data['payment_mode'] ?? null, $data['order_type']),
             ]);
 
             return $order;
@@ -415,5 +432,10 @@ class AgentController extends Controller
             'outstanding_balance' => $outstanding,
             'last_receipt' => $lastReceipt,
         ]);
+    }
+
+    protected function usesCredit(?string $paymentMode, string $orderType): bool
+    {
+        return $paymentMode === 'credit' && in_array($orderType, ['regular', 'bulk'], true);
     }
 }

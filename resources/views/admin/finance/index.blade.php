@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $baseCurrencyCode = \App\Support\Currency::baseCode();
+@endphp
 <div class="space-y-8">
     <!-- Header with gradient -->
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6" data-tour="finance-overview-header">
@@ -32,11 +35,12 @@
 
     @if($invoices->isNotEmpty())
         @php
-            $totalNet = $invoices->sum('net_total');
-            $totalVAT = $invoices->sum('vat_amount');
-            $totalWithholding = $invoices->sum('withholding');
-            $totalReceipts = $invoices->sum(fn($invoice) => $invoice->receipts->sum('amount'));
-            $outstanding = $invoices->sum(fn($invoice) => (float) $invoice->outstanding);
+            $toBase = fn($invoice, $amount) => round((float) $amount * (float) ($invoice->exchange_rate ?? 1), 2);
+            $totalNet = $invoices->sum(fn($invoice) => $toBase($invoice, $invoice->net_total));
+            $totalVAT = $invoices->sum(fn($invoice) => $toBase($invoice, $invoice->vat_amount));
+            $totalWithholding = $invoices->sum(fn($invoice) => $toBase($invoice, $invoice->withholding));
+            $totalReceipts = $invoices->sum(fn($invoice) => $toBase($invoice, $invoice->receipts->sum('amount')));
+            $outstanding = $invoices->sum(fn($invoice) => $toBase($invoice, $invoice->outstanding));
             
             $statusBreakdown = $invoices->groupBy('status')->map->count();
         @endphp
@@ -82,9 +86,9 @@
                             </svg>
                         </div>
                     </div>
-                    <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">BDT {{ number_format($totalNet, 0) }}</p>
+                    <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $baseCurrencyCode }} {{ number_format($totalNet, 0) }}</p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        VAT: BDT {{ number_format($totalVAT, 0) }}
+                        VAT: {{ $baseCurrencyCode }} {{ number_format($totalVAT, 0) }}
                     </p>
                 </div>
             </div>
@@ -104,9 +108,9 @@
                             </svg>
                         </div>
                     </div>
-                    <p class="mt-3 text-3xl font-bold text-success-600 dark:text-success-400">BDT {{ number_format($totalReceipts, 0) }}</p>
+                    <p class="mt-3 text-3xl font-bold text-success-600 dark:text-success-400">{{ $baseCurrencyCode }} {{ number_format($totalReceipts, 0) }}</p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Withholding: BDT {{ number_format($totalWithholding, 0) }}
+                        Withholding: {{ $baseCurrencyCode }} {{ number_format($totalWithholding, 0) }}
                     </p>
                 </div>
             </div>
@@ -126,7 +130,7 @@
                             </svg>
                         </div>
                     </div>
-                    <p class="mt-3 text-3xl font-bold text-orange-600 dark:text-orange-400">BDT {{ number_format($outstanding, 0) }}</p>
+                    <p class="mt-3 text-3xl font-bold text-orange-600 dark:text-orange-400">{{ $baseCurrencyCode }} {{ number_format($outstanding, 0) }}</p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {{ $outstanding > 0 ? 'Awaiting payment' : 'Fully paid' }}
                     </p>
@@ -177,6 +181,7 @@
                                 ];
                                 $statusColor = $statusColors[$invoice->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
                                 
+                                $invoiceCurrencyCode = $invoice->currency_code ?? $baseCurrencyCode;
                                 $receiptsTotal = $invoice->receipts->sum('amount');
                                 $cashTotal = ($invoice->net_total + $invoice->vat_amount) - $invoice->withholding;
                                 $outstandingAmount = (float) $invoice->outstanding;
@@ -220,26 +225,29 @@
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <span class="text-sm font-medium text-gray-900 dark:text-white">
-                                        {{ number_format($invoice->net_total, 0) }}
+                                        {{ $invoiceCurrencyCode }} {{ number_format($invoice->net_total, 0) }}
+                                    </span>
+                                    @if($invoiceCurrencyCode !== $baseCurrencyCode)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">FX {{ number_format((float) ($invoice->exchange_rate ?? 1), 6) }}</p>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="text-sm text-gray-700 dark:text-gray-300">
+                                        {{ $invoiceCurrencyCode }} {{ number_format($invoice->vat_amount, 0) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">
-                                        {{ number_format($invoice->vat_amount, 0) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    <span class="text-sm text-gray-700 dark:text-gray-300">
-                                        {{ number_format($invoice->withholding, 0) }}
+                                        {{ $invoiceCurrencyCode }} {{ number_format($invoice->withholding, 0) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <span class="text-sm font-bold {{ $receiptsTotal >= $cashTotal ? 'text-success-600 dark:text-success-400' : 'text-gray-900 dark:text-white' }}">
-                                        {{ number_format($receiptsTotal, 0) }}
+                                        {{ $invoiceCurrencyCode }} {{ number_format($receiptsTotal, 0) }}
                                     </span>
                                     @if($outstandingAmount > 0)
                                         <p class="text-xs text-orange-600 dark:text-orange-400">
-                                            Due: {{ number_format($outstandingAmount, 0) }}
+                                            Due: {{ $invoiceCurrencyCode }} {{ number_format($outstandingAmount, 0) }}
                                         </p>
                                     @endif
                                 </td>
@@ -259,7 +267,7 @@
                                             <form action="{{ route('admin.finance.receipts.store', $invoice) }}" 
                                                   method="POST" 
                                                   class="inline"
-                                                  onsubmit="return confirm('Mark invoice {{ $invoice->number }} as paid for BDT {{ number_format($outstandingAmount, 0) }}?');">
+                                                  onsubmit="return confirm('Mark invoice {{ $invoice->number }} as paid for {{ $invoiceCurrencyCode }} {{ number_format($outstandingAmount, 0) }}?');">
                                                 @csrf
                                                 <input type="hidden" name="amount" value="{{ $outstandingAmount }}">
                                                 <input type="hidden" name="payment_method" value="bank_transfer">

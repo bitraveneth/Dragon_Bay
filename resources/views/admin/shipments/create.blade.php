@@ -7,7 +7,10 @@
             <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">New Shipment</h1>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Create the logistics record for China to Bangladesh movement.</p>
         </div>
-        <a href="{{ route('admin.shipments.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Back</a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('admin.shipment-rate-cards.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Rate Cards</a>
+            <a href="{{ route('admin.shipments.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Back</a>
+        </div>
     </div>
 
     <form method="POST" action="{{ route('admin.shipments.store') }}" class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
@@ -38,11 +41,12 @@
             <div>
                 <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Internal Agent (Salesperson)</label>
                 <select name="agent_id" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-                    <option value="">None</option>
+                    <option value="">Use client's assigned agent</option>
                     @foreach($agents as $agent)
                         <option value="{{ $agent->id }}" @selected(old('agent_id') == $agent->id)>{{ $agent->name }}</option>
                     @endforeach
                 </select>
+                @error('agent_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Related Order</label>
@@ -88,8 +92,21 @@
                 <input type="date" name="estimated_arrival" value="{{ old('estimated_arrival') }}" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Estimated Rate Per Chargeable KG</label>
-                <input type="number" step="0.01" min="0" name="estimated_unit_rate" value="{{ old('estimated_unit_rate', '0.00') }}" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Estimated Rate</label>
+                <input type="number" step="0.01" min="0" name="estimated_unit_rate" value="{{ old('estimated_unit_rate') }}" placeholder="Auto from rate card" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                <p class="mt-1 text-xs text-gray-500">Leave blank or 0 to use the best matching active rate card.</p>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Manual Pricing Basis</label>
+                <select name="pricing_basis" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    @foreach(['chargeable_kg' => 'Chargeable KG', 'cbm' => 'CBM', 'shipment' => 'Shipment'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('pricing_basis', 'chargeable_kg') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Manual Volumetric Divisor</label>
+                <input type="number" min="1" name="volumetric_divisor" value="{{ old('volumetric_divisor', 5000) }}" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
             </div>
             <div class="md:col-span-2">
                 <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>

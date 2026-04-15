@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Receipt;
 use App\Models\CreditNote;
 use App\Models\Shipment;
+use App\Support\Currency;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -154,6 +155,7 @@ class ClientPortalController extends Controller
 
         $fromDate = $from ? now()->parse($from)->startOfDay() : now()->startOfMonth();
         $toDate = $to ? now()->parse($to)->endOfDay() : now()->endOfMonth();
+        $statementCurrencyCode = strtoupper((string) ($client->currency ?: Currency::baseCode()));
 
         $invoices = $this->clientInvoicesQuery($client->id)
             ->with(['order', 'shipment'])
@@ -185,6 +187,7 @@ class ClientPortalController extends Controller
                     ? 'Shipment ' . $invoice->shipment->shipment_no
                     : 'Order #' . $invoice->order_id,
                 'amount' => $invoice->cash_total,
+                'currency_code' => $invoice->currency_code ?: $statementCurrencyCode,
             ];
         }
 
@@ -195,6 +198,7 @@ class ClientPortalController extends Controller
                 'reference' => $receipt->invoice?->number,
                 'description' => 'Payment received',
                 'amount' => (float) $receipt->amount * -1,
+                'currency_code' => $receipt->currency_code ?: $receipt->invoice?->currency_code ?: $statementCurrencyCode,
             ];
         }
 
@@ -205,6 +209,7 @@ class ClientPortalController extends Controller
                 'reference' => $credit->number,
                 'description' => $credit->reason ?: 'Credit note',
                 'amount' => (float) $credit->amount * -1,
+                'currency_code' => $credit->currency_code ?: $credit->invoice?->currency_code ?: $statementCurrencyCode,
             ];
         }
 
@@ -217,7 +222,7 @@ class ClientPortalController extends Controller
         }
         unset($row);
 
-        return view('portal.statement', compact('client', 'rows', 'fromDate', 'toDate', 'balance'));
+        return view('portal.statement', compact('client', 'rows', 'fromDate', 'toDate', 'balance', 'statementCurrencyCode'));
     }
 
     public function profile(Request $request)

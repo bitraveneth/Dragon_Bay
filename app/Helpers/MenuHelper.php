@@ -410,6 +410,7 @@ class MenuHelper
                             ['name' => 'Sales dashboard', 'path' => '/admin/sales-dashboard', 'permission' => 'sales.manage'],
                             ['name' => 'Sales orders', 'path' => '/admin/orders', 'permission' => 'sales.manage'],
                             ['name' => 'Shipments', 'path' => '/admin/shipments', 'permission' => 'logistics.shipments'],
+                            ['name' => 'Shipment rate cards', 'path' => '/admin/shipment-rate-cards', 'permission' => 'logistics.pricing'],
                             ['name' => 'Sales targets', 'path' => '/admin/sales-targets', 'permission' => 'sales.manage'],
                             ['name' => 'Returns', 'path' => '/admin/returns/customer', 'permission' => 'sales.manage'],
                             ['name' => 'Customer gifts', 'path' => '/admin/gifts', 'permission' => 'sales.manage'],
@@ -668,6 +669,11 @@ class MenuHelper
                     'path' => '/admin/shipments',
                     'permission' => 'logistics.shipments',
                 ]);
+                $subItems->push([
+                    'name' => 'Shipment rate cards',
+                    'path' => '/admin/shipment-rate-cards',
+                    'permission' => 'logistics.pricing',
+                ]);
 
                 $item['subItems'] = $subItems
                     ->unique(fn (array $sub) => mb_strtolower(trim(($sub['name'] ?? '') . '|' . ($sub['path'] ?? ''))))
@@ -825,6 +831,7 @@ class MenuHelper
             '/admin/sales-dashboard' => 'Orders dashboard',
             '/admin/orders' => 'Client orders',
             '/admin/shipments' => 'Shipments',
+            '/admin/shipment-rate-cards' => 'Shipment rate cards',
             '/admin/sales-targets' => 'Account targets',
             '/admin/returns/customer' => 'Client returns',
             '/admin/commissions' => 'Commission statements',

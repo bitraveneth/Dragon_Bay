@@ -24,7 +24,7 @@
 
     <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
         <div class="text-xs uppercase text-gray-500">Closing Balance</div>
-        <div class="mt-2 text-2xl font-semibold">BDT {{ number_format($balance, 2) }}</div>
+        <div class="mt-2 text-2xl font-semibold">{{ $statementCurrencyCode }} {{ number_format($balance, 2) }}</div>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -47,8 +47,8 @@
                             <td class="px-4 py-3">{{ ucwords(str_replace('_', ' ', $row['type'])) }}</td>
                             <td class="px-4 py-3">{{ $row['reference'] ?: '-' }}</td>
                             <td class="px-4 py-3">{{ $row['description'] }}</td>
-                            <td class="px-4 py-3 text-right {{ $row['amount'] < 0 ? 'text-green-600 dark:text-green-400' : '' }}">BDT {{ number_format($row['amount'], 2) }}</td>
-                            <td class="px-4 py-3 text-right">BDT {{ number_format($row['balance'], 2) }}</td>
+                            <td class="px-4 py-3 text-right {{ $row['amount'] < 0 ? 'text-green-600 dark:text-green-400' : '' }}">{{ $row['currency_code'] ?? $statementCurrencyCode }} {{ number_format($row['amount'], 2) }}</td>
+                            <td class="px-4 py-3 text-right">{{ $statementCurrencyCode }} {{ number_format($row['balance'], 2) }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No statement activity found.</td></tr>

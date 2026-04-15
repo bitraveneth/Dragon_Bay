@@ -4,6 +4,9 @@
 @php
     $label = 'mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
     $input = 'w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white';
+    $baseCurrencyCode = \App\Support\Currency::baseCode();
+    $shipmentCurrencyCode = $shipment->client?->currency ?? $baseCurrencyCode;
+    $needsExchangeRate = $shipmentCurrencyCode !== $baseCurrencyCode;
 @endphp
 
 <div class="space-y-6">
@@ -15,14 +18,21 @@
             </p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <form method="POST" action="{{ route('admin.shipments.invoice', $shipment) }}">
+            <a href="{{ route('admin.shipment-rate-cards.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Rate Cards</a>
+            <form method="POST" action="{{ route('admin.shipments.invoice', $shipment) }}" class="flex flex-wrap gap-2">
                 @csrf
                 <input type="hidden" name="invoice_type" value="proforma">
+                @if($needsExchangeRate)
+                    <input type="number" step="0.000001" min="0.000001" name="exchange_rate" value="{{ old('exchange_rate') }}" placeholder="{{ $shipmentCurrencyCode }} to {{ $baseCurrencyCode }}" class="w-36 rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                @endif
                 <button class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Create Proforma</button>
             </form>
-            <form method="POST" action="{{ route('admin.shipments.invoice', $shipment) }}">
+            <form method="POST" action="{{ route('admin.shipments.invoice', $shipment) }}" class="flex flex-wrap gap-2">
                 @csrf
                 <input type="hidden" name="invoice_type" value="final">
+                @if($needsExchangeRate)
+                    <input type="number" step="0.000001" min="0.000001" name="exchange_rate" value="{{ old('exchange_rate') }}" placeholder="{{ $shipmentCurrencyCode }} to {{ $baseCurrencyCode }}" class="w-36 rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                @endif
                 <button class="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">Create Final Invoice</button>
             </form>
             <a href="{{ route('admin.shipments.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Back</a>
@@ -44,7 +54,7 @@
         </div>
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
             <div class="text-xs uppercase text-gray-500">Final Price</div>
-            <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $shipment->final_price === null ? '-' : number_format((float) $shipment->final_price, 2) }}</div>
+            <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $shipment->final_price === null ? '-' : $shipmentCurrencyCode . ' ' . number_format((float) $shipment->final_price, 2) }}</div>
         </div>
     </div>
 
@@ -108,7 +118,14 @@
 
             <form method="POST" action="{{ route('admin.shipments.pricing.lock', $shipment) }}" class="mt-6 space-y-3">
                 @csrf
-                <label class="{{ $label }}">Final Rate Per Chargeable KG</label>
+                <div class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    <div>Estimated rate: {{ number_format((float) $shipment->estimated_unit_rate, 2) }} / {{ ucwords(str_replace('_', ' ', $shipment->pricing_basis ?? 'chargeable_kg')) }}</div>
+                    <div>Volumetric divisor: {{ number_format((int) ($shipment->volumetric_divisor ?? 5000)) }}</div>
+                    @if($shipment->estimatedRateCard)
+                        <div>Rate card: #{{ $shipment->estimatedRateCard->id }}</div>
+                    @endif
+                </div>
+                <label class="{{ $label }}">Final Rate Per {{ ucwords(str_replace('_', ' ', $shipment->pricing_basis ?? 'chargeable_kg')) }}</label>
                 <input type="number" step="0.01" min="0" name="final_unit_rate" value="{{ old('final_unit_rate', $shipment->final_unit_rate ?? $shipment->estimated_unit_rate) }}" class="{{ $input }}">
                 <button class="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">Lock Pricing</button>
                 @if($shipment->pricing_locked)
@@ -255,7 +272,12 @@
                             <td class="py-2"><a class="text-brand-600 dark:text-brand-300" href="{{ route('admin.finance.show', $invoice) }}">{{ $invoice->number }}</a></td>
                             <td class="py-2">{{ ucwords($invoice->invoice_type ?? 'standard') }}</td>
                             <td class="py-2">{{ ucwords($invoice->status) }}</td>
-                            <td class="py-2 text-right">{{ number_format((float) $invoice->net_total + (float) $invoice->vat_amount, 2) }}</td>
+                            <td class="py-2 text-right">
+                                {{ ($invoice->currency_code ?? $shipmentCurrencyCode) }} {{ number_format((float) $invoice->net_total + (float) $invoice->vat_amount, 2) }}
+                                @if(($invoice->currency_code ?? $shipmentCurrencyCode) !== $baseCurrencyCode)
+                                    <div class="text-xs text-gray-500">FX {{ number_format((float) ($invoice->exchange_rate ?? 1), 6) }}</div>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="py-6 text-center text-gray-500">No invoices issued.</td></tr>

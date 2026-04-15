@@ -553,7 +553,7 @@ class ReportController extends Controller
         [$from, $to] = $this->resolveDateRange($request, Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
 
         if ($report === 'profitability') {
-            $shipments = Shipment::with(['agent', 'packages', 'expenses', 'invoices'])
+            $shipments = Shipment::with(['client', 'agent', 'packages', 'expenses', 'invoices'])
                 ->whereBetween('created_at', [$from, $to])
                 ->get();
 
@@ -565,7 +565,7 @@ class ReportController extends Controller
 
                 return [
                     'shipment' => $shipment,
-                    'client' => $shipment->agent?->name,
+                    'client' => $shipment->client?->name ?? $shipment->agent?->name,
                     'mode' => $shipment->mode,
                     'chargeable_weight' => $shipment->packages->sum('chargeable_weight_kg'),
                     'revenue' => $revenue,
@@ -578,14 +578,14 @@ class ReportController extends Controller
         }
 
         if ($report === 'weight') {
-            $shipments = Shipment::with(['agent', 'packages'])
+            $shipments = Shipment::with(['client', 'agent', 'packages'])
                 ->whereBetween('created_at', [$from, $to])
                 ->get();
 
             $rows = $shipments->map(function (Shipment $shipment) {
                 return [
                     'shipment' => $shipment,
-                    'client' => $shipment->agent?->name,
+                    'client' => $shipment->client?->name ?? $shipment->agent?->name,
                     'actual_weight' => $shipment->packages->sum('actual_weight_kg'),
                     'cbm' => $shipment->packages->sum('cbm'),
                     'volumetric_weight' => $shipment->packages->sum('volumetric_weight_kg'),

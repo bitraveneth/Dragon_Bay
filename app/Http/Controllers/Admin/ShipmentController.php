@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\AuditLog;
+use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\LedgerEntry;
@@ -14,15 +15,19 @@ use App\Models\ShipmentExpense;
 use App\Models\ShipmentLeg;
 use App\Models\ShipmentPackage;
 use App\Models\ShipmentPod;
+use App\Models\ShipmentRateCard;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Notifications\SystemAlertNotification;
+use App\Support\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class ShipmentController extends Controller
 {
@@ -61,8 +66,9 @@ class ShipmentController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedShipment($request);
-        $data['shipment_no'] = $data['shipment_no'] ?: Shipment::nextShipmentNumber();
+        $data['shipment_no'] = ($data['shipment_no'] ?? null) ?: Shipment::nextShipmentNumber();
         $data['status'] = 'draft';
+        $data = $this->applyEstimatedPricing($data);
 
         $shipment = DB::transaction(function () use ($data) {
             $shipment = Shipment::create($data);
@@ -82,6 +88,7 @@ class ShipmentController extends Controller
         $shipment->load([
             'client',
             'agent',
+            'estimatedRateCard',
             'order',
             'originWarehouse',
             'destinationWarehouse',
@@ -106,7 +113,13 @@ class ShipmentController extends Controller
         ]);
 
         $old = $shipment->only(['status']);
-        $shipment->transitionTo($data['status']);
+
+        try {
+            $shipment->transitionTo($data['status']);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['status' => $exception->getMessage()]);
+        }
+
         AuditLog::record('shipment.status_changed', $shipment, $old, $shipment->only(['status']));
         $this->notifyRoles(
             ['super_admin', 'admin', 'sales_officer', 'delivery_coordinator', 'warehouse_officer'],
@@ -184,13 +197,21 @@ class ShipmentController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        if ($data['status'] === 'approved') {
-            $data['approved_by'] = optional($request->user())->id;
-            $data['approved_at'] = now();
-        }
+        $expense = null;
 
-        $expense = $shipment->expenses()->create($data);
-        AuditLog::record('shipment.expense_added', $expense, [], $expense->toArray());
+        DB::transaction(function () use ($request, $shipment, $data, &$expense) {
+            if ($data['status'] === 'approved') {
+                $data['approved_by'] = optional($request->user())->id;
+                $data['approved_at'] = now();
+            }
+
+            $expense = $shipment->expenses()->create($data);
+            AuditLog::record('shipment.expense_added', $expense, [], $expense->toArray());
+
+            if ($expense->status === 'approved') {
+                $this->postApprovedExpenseToLedger($expense);
+            }
+        });
 
         return back()->with('status', 'Shipment expense recorded.');
     }
@@ -228,9 +249,12 @@ class ShipmentController extends Controller
     {
         abort_unless((int) $expense->shipment_id === (int) $shipment->id, 404);
 
-        $old = $expense->only(['status', 'approved_by', 'approved_at']);
-        $expense->approve(optional($request->user())->id);
-        AuditLog::record('shipment.expense_approved', $expense, $old, $expense->only(['status', 'approved_by', 'approved_at']));
+        DB::transaction(function () use ($request, $expense) {
+            $old = $expense->only(['status', 'approved_by', 'approved_at']);
+            $expense->approve(optional($request->user())->id);
+            AuditLog::record('shipment.expense_approved', $expense, $old, $expense->only(['status', 'approved_by', 'approved_at']));
+            $this->postApprovedExpenseToLedger($expense->fresh(['shipment']));
+        });
 
         return back()->with('status', 'Shipment expense approved.');
     }
@@ -253,10 +277,18 @@ class ShipmentController extends Controller
     {
         $data = $request->validate([
             'invoice_type' => 'required|in:proforma,final',
+            'exchange_rate' => 'nullable|numeric|min:0.000001',
         ]);
 
         if ($data['invoice_type'] === 'final' && ! $shipment->pricing_locked) {
             return back()->withErrors(['invoice' => 'Lock final pricing before issuing a final invoice.']);
+        }
+
+        $invoiceCurrency = $shipment->client?->currency ?? Currency::baseCode();
+        if (Currency::requiresExchangeRate($invoiceCurrency, $data['exchange_rate'] ?? null)) {
+            return back()
+                ->withErrors(['exchange_rate' => 'Enter an exchange rate for ' . $invoiceCurrency . ' to ' . Currency::baseCode() . ' before creating this invoice.'])
+                ->withInput();
         }
 
         $invoice = DB::transaction(function () use ($shipment, $data) {
@@ -277,7 +309,10 @@ class ShipmentController extends Controller
                 'withholding' => 0,
                 'status' => $data['invoice_type'] === 'proforma' ? 'draft' : 'issued',
                 'locked_at' => $data['invoice_type'] === 'final' ? now() : null,
-            ]);
+            ] + Currency::invoicePayload(
+                $shipment->client?->currency ?? null,
+                $data['exchange_rate'] ?? null
+            ));
 
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
@@ -288,23 +323,23 @@ class ShipmentController extends Controller
             ]);
 
             if ($data['invoice_type'] === 'final') {
-                LedgerEntry::create([
+                LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                     'account' => 'Accounts Receivable',
                     'description' => 'Final invoice ' . $invoice->number,
                     'debit' => $invoice->net_total,
                     'credit' => 0,
                     'order_id' => $shipment->order_id,
                     'invoice_id' => $invoice->id,
-                ]);
+                ]));
 
-                LedgerEntry::create([
+                LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                     'account' => 'Freight Revenue',
                     'description' => 'Final invoice ' . $invoice->number,
                     'debit' => 0,
                     'credit' => $invoice->net_total,
                     'order_id' => $shipment->order_id,
                     'invoice_id' => $invoice->id,
-                ]);
+                ]));
 
                 if ($shipment->status === 'delivered') {
                     $shipment->transitionTo('final_invoiced');
@@ -335,9 +370,50 @@ class ShipmentController extends Controller
             'destination_warehouse_id' => 'nullable|exists:warehouses,id',
             'estimated_departure' => 'nullable|date',
             'estimated_arrival' => 'nullable|date',
-            'estimated_unit_rate' => 'required|numeric|min:0',
+            'estimated_unit_rate' => 'nullable|numeric|min:0',
+            'pricing_basis' => ['nullable', Rule::in(ShipmentRateCard::BILLING_UNITS)],
+            'volumetric_divisor' => 'nullable|integer|min:1|max:100000',
             'notes' => 'nullable|string',
         ]);
+    }
+
+    protected function applyEstimatedPricing(array $data): array
+    {
+        $client = Client::find($data['client_id']);
+        $data['agent_id'] = $data['agent_id'] ?? $client?->agent_id;
+
+        if (! $data['agent_id']) {
+            throw ValidationException::withMessages([
+                'agent_id' => 'Select an internal agent or assign one to the client profile before creating a shipment.',
+            ]);
+        }
+
+        $manualRate = array_key_exists('estimated_unit_rate', $data) && (float) $data['estimated_unit_rate'] > 0;
+
+        $data['pricing_basis'] = $data['pricing_basis'] ?? 'chargeable_kg';
+        $data['volumetric_divisor'] = $data['volumetric_divisor'] ?? ShipmentPackage::VOLUMETRIC_DIVISOR;
+
+        if ($manualRate) {
+            $data['estimated_rate_card_id'] = null;
+
+            return $data;
+        }
+
+        $rateCard = ShipmentRateCard::bestMatch($data, $data['estimated_departure'] ?? null);
+
+        if ($rateCard) {
+            $data['estimated_rate_card_id'] = $rateCard->id;
+            $data['estimated_unit_rate'] = $rateCard->rate;
+            $data['pricing_basis'] = $rateCard->billing_unit;
+            $data['volumetric_divisor'] = $rateCard->volumetric_divisor;
+
+            return $data;
+        }
+
+        $data['estimated_unit_rate'] = $data['estimated_unit_rate'] ?? 0;
+        $data['estimated_rate_card_id'] = null;
+
+        return $data;
     }
 
     protected function seedDefaultLegs(Shipment $shipment): void
@@ -375,5 +451,68 @@ class ShipmentController extends Controller
             ->get()
             ->filter(fn (User $user) => $user->hasAnyRole($roles))
             ->each(fn (User $user) => $user->notify(new SystemAlertNotification($payload)));
+    }
+
+    protected function postApprovedExpenseToLedger(ShipmentExpense $expense): void
+    {
+        if (! Schema::hasColumn('ledger_entries', 'shipment_expense_id')) {
+            return;
+        }
+
+        $amount = round((float) $expense->effective_amount, 2);
+        if ($amount <= 0) {
+            return;
+        }
+
+        if (LedgerEntry::where('shipment_expense_id', $expense->id)->exists()) {
+            return;
+        }
+
+        $expense->loadMissing('shipment');
+        $shipment = $expense->shipment;
+        $description = 'Approved ' . str_replace('_', ' ', $expense->expense_type)
+            . ' for shipment ' . ($shipment?->shipment_no ?? ('#' . $expense->shipment_id));
+
+        $context = [
+            'order_id' => $shipment?->order_id,
+            'client_id' => $shipment?->client_id,
+            'shipment_id' => $expense->shipment_id,
+            'shipment_expense_id' => $expense->id,
+        ];
+
+        LedgerEntry::create(array_merge($context, [
+            'account' => $this->expenseLedgerAccount($expense->expense_type),
+            'description' => $description,
+            'debit' => $amount,
+            'credit' => 0,
+        ]));
+
+        LedgerEntry::create(array_merge($context, [
+            'account' => 'Accrued Logistics Payable',
+            'description' => $description,
+            'debit' => 0,
+            'credit' => $amount,
+        ]));
+    }
+
+    protected function expenseLedgerAccount(string $expenseType): string
+    {
+        return match ($expenseType) {
+            'air_freight' => 'Air Freight Cost',
+            'sea_freight' => 'Sea Freight Cost',
+            'customs_duty' => 'Customs & Duty Expense',
+            'port_warehouse' => 'Port & Warehouse Expense',
+            'last_mile' => 'Last Mile Delivery Expense',
+            default => 'Logistics Expense',
+        };
+    }
+
+    protected function ledgerPayloadForInvoice(Invoice $invoice, array $payload): array
+    {
+        return Currency::ledgerPayload(
+            $payload,
+            $invoice->currency_code ?? Currency::baseCode(),
+            $invoice->exchange_rate ?? null
+        );
     }
 }

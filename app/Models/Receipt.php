@@ -12,6 +12,8 @@ class Receipt extends Model
     protected $fillable = [
         'invoice_id',
         'amount',
+        'currency_code',
+        'exchange_rate',
         'payment_method',
         'received_at',
         'notes',
@@ -19,6 +21,7 @@ class Receipt extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
         'received_at' => 'date',
         'reconciled' => 'boolean',
     ];

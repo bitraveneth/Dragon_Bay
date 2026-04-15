@@ -3,7 +3,13 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Models\Agent;
 use App\Models\Client;
+use App\Models\CreditNote;
+use App\Models\Invoice;
+use App\Models\Order;
+use App\Models\Receipt;
+use App\Models\Shipment;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +84,230 @@ class ClientPortalTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_client_user_only_sees_their_own_invoices_orders_and_shipments(): void
+    {
+        $agent = Agent::create(['name' => 'Portal Agent', 'is_active' => true]);
+
+        $clientA = Client::create(['name' => 'Client A', 'currency' => 'USD', 'agent_id' => $agent->id, 'is_active' => true]);
+        $clientB = Client::create(['name' => 'Client B', 'currency' => 'BDT', 'agent_id' => $agent->id, 'is_active' => true]);
+
+        $userA = User::create([
+            'name' => 'Client A User',
+            'email' => 'client-a@example.test',
+            'password' => 'secret',
+            'role' => 'client',
+            'client_id' => $clientA->id,
+        ]);
+
+        $orderA = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $clientA->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 500,
+        ]);
+        $orderB = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $clientB->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 900,
+        ]);
+
+        $shipmentA = Shipment::create([
+            'order_id' => $orderA->id,
+            'client_id' => $clientA->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-A-001',
+            'mode' => 'air',
+            'status' => 'in_transit',
+        ]);
+        $shipmentB = Shipment::create([
+            'order_id' => $orderB->id,
+            'client_id' => $clientB->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-B-001',
+            'mode' => 'sea_lcl',
+            'status' => 'in_transit',
+        ]);
+
+        $invoiceA = Invoice::create([
+            'order_id' => $orderA->id,
+            'shipment_id' => $shipmentA->id,
+            'number' => 'INV-A-001',
+            'invoice_type' => 'final',
+            'currency_code' => 'USD',
+            'exchange_rate' => 110,
+            'issued_at' => now()->toDateString(),
+            'net_total' => 500,
+            'status' => 'issued',
+        ]);
+        $invoiceB = Invoice::create([
+            'order_id' => $orderB->id,
+            'shipment_id' => $shipmentB->id,
+            'number' => 'INV-B-001',
+            'invoice_type' => 'final',
+            'currency_code' => 'BDT',
+            'exchange_rate' => 1,
+            'issued_at' => now()->toDateString(),
+            'net_total' => 900,
+            'status' => 'issued',
+        ]);
+
+        $this->actingAs($userA)
+            ->get(route('portal.invoices.index'))
+            ->assertOk()
+            ->assertSee('INV-A-001')
+            ->assertDontSee('INV-B-001');
+
+        $this->actingAs($userA)
+            ->get(route('portal.orders.index'))
+            ->assertOk()
+            ->assertSee('Order #' . $orderA->id)
+            ->assertDontSee('Order #' . $orderB->id);
+
+        $this->actingAs($userA)
+            ->get(route('portal.shipments.index'))
+            ->assertOk()
+            ->assertSee('SHP-A-001')
+            ->assertDontSee('SHP-B-001');
+
+        $this->actingAs($userA)
+            ->get(route('portal.invoices.show', $invoiceA))
+            ->assertOk()
+            ->assertSee('INV-A-001');
+
+        $this->actingAs($userA)
+            ->get(route('portal.invoices.show', $invoiceB))
+            ->assertNotFound();
+
+        $this->actingAs($userA)
+            ->get(route('portal.orders.show', $orderB))
+            ->assertNotFound();
+
+        $this->actingAs($userA)
+            ->get(route('portal.shipments.show', $shipmentB))
+            ->assertNotFound();
+    }
+
+    public function test_client_portal_invoice_and_statement_use_invoice_currency_and_client_scope(): void
+    {
+        $agent = Agent::create(['name' => 'Portal Agent', 'is_active' => true]);
+
+        $clientA = Client::create(['name' => 'Client USD', 'currency' => 'USD', 'agent_id' => $agent->id, 'is_active' => true]);
+        $clientB = Client::create(['name' => 'Client BDT', 'currency' => 'BDT', 'agent_id' => $agent->id, 'is_active' => true]);
+
+        $userA = User::create([
+            'name' => 'Client USD User',
+            'email' => 'client-usd@example.test',
+            'password' => 'secret',
+            'role' => 'client',
+            'client_id' => $clientA->id,
+        ]);
+
+        $orderA = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $clientA->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 1200,
+        ]);
+        $shipmentA = Shipment::create([
+            'order_id' => $orderA->id,
+            'client_id' => $clientA->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-USD-001',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'final_price' => 1200,
+        ]);
+
+        $invoiceA = Invoice::create([
+            'order_id' => $orderA->id,
+            'shipment_id' => $shipmentA->id,
+            'number' => 'INV-USD-001',
+            'invoice_type' => 'final',
+            'currency_code' => 'USD',
+            'exchange_rate' => 110,
+            'issued_at' => '2026-04-10',
+            'due_at' => '2026-04-20',
+            'net_total' => 1000,
+            'vat_amount' => 200,
+            'withholding' => 0,
+            'status' => 'issued',
+        ]);
+
+        Receipt::create([
+            'invoice_id' => $invoiceA->id,
+            'amount' => 200,
+            'currency_code' => 'USD',
+            'exchange_rate' => 110,
+            'received_at' => '2026-04-12',
+            'payment_method' => 'bank_transfer',
+        ]);
+
+        CreditNote::create([
+            'invoice_id' => $invoiceA->id,
+            'order_id' => $orderA->id,
+            'number' => 'CN-USD-001',
+            'issued_at' => '2026-04-13',
+            'amount' => 50,
+            'currency_code' => 'USD',
+            'exchange_rate' => 110,
+            'reason' => 'Rate adjustment',
+        ]);
+
+        $orderB = Order::create([
+            'agent_id' => $agent->id,
+            'client_id' => $clientB->id,
+            'order_type' => 'regular',
+            'status' => 'confirmed',
+            'total' => 400,
+        ]);
+        $shipmentB = Shipment::create([
+            'order_id' => $orderB->id,
+            'client_id' => $clientB->id,
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-BDT-001',
+            'mode' => 'courier',
+            'status' => 'delivered',
+        ]);
+        Invoice::create([
+            'order_id' => $orderB->id,
+            'shipment_id' => $shipmentB->id,
+            'number' => 'INV-BDT-001',
+            'invoice_type' => 'final',
+            'currency_code' => 'BDT',
+            'exchange_rate' => 1,
+            'issued_at' => '2026-04-11',
+            'net_total' => 400,
+            'status' => 'issued',
+        ]);
+
+        $this->actingAs($userA)
+            ->get(route('portal.invoices.show', $invoiceA))
+            ->assertOk()
+            ->assertSee('USD 1,200.00')
+            ->assertSee('USD 200.00')
+            ->assertSee('USD 50.00')
+            ->assertSee('USD 950.00')
+            ->assertDontSee('BDT 1,200.00');
+
+        $this->actingAs($userA)
+            ->get(route('portal.statement', [
+                'from' => '2026-04-01',
+                'to' => '2026-04-30',
+            ]))
+            ->assertOk()
+            ->assertSee('INV-USD-001')
+            ->assertSee('CN-USD-001')
+            ->assertSee('USD 1,200.00')
+            ->assertSee('USD -200.00')
+            ->assertSee('USD -50.00')
+            ->assertSee('USD 950.00')
+            ->assertDontSee('INV-BDT-001');
+    }
+
     protected function createSchema(): void
     {
         Schema::create('agents', function (Blueprint $table) {
@@ -122,6 +352,7 @@ class ClientPortalTest extends TestCase
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->string('order_type')->default('regular');
             $table->date('delivery_date')->nullable();
             $table->string('status')->default('draft');
@@ -137,6 +368,7 @@ class ClientPortalTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('order_id')->nullable();
             $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->string('shipment_no');
             $table->string('mode');
             $table->string('status')->default('draft');
@@ -237,6 +469,8 @@ class ClientPortalTest extends TestCase
             $table->unsignedBigInteger('shipment_id')->nullable();
             $table->string('number');
             $table->string('invoice_type')->nullable();
+            $table->string('currency_code')->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->date('issued_at')->nullable();
             $table->date('due_at')->nullable();
             $table->decimal('net_total', 14, 2)->default(0);
@@ -262,6 +496,8 @@ class ClientPortalTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('invoice_id');
             $table->decimal('amount', 14, 2)->default(0);
+            $table->string('currency_code')->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->string('payment_method')->nullable();
             $table->date('received_at')->nullable();
             $table->text('notes')->nullable();
@@ -275,6 +511,8 @@ class ClientPortalTest extends TestCase
             $table->string('number')->nullable();
             $table->date('issued_at')->nullable();
             $table->decimal('amount', 14, 2)->default(0);
+            $table->string('currency_code')->default('BDT');
+            $table->decimal('exchange_rate', 18, 6)->default(1);
             $table->text('reason')->nullable();
             $table->timestamps();
         });

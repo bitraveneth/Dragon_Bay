@@ -39,6 +39,9 @@ class Shipment extends Model
         'estimated_departure',
         'estimated_arrival',
         'estimated_unit_rate',
+        'estimated_rate_card_id',
+        'pricing_basis',
+        'volumetric_divisor',
         'final_unit_rate',
         'estimated_price',
         'final_price',
@@ -52,6 +55,7 @@ class Shipment extends Model
         'estimated_departure' => 'date',
         'estimated_arrival' => 'date',
         'estimated_unit_rate' => 'decimal:2',
+        'volumetric_divisor' => 'integer',
         'final_unit_rate' => 'decimal:2',
         'estimated_price' => 'decimal:2',
         'final_price' => 'decimal:2',
@@ -87,6 +91,11 @@ class Shipment extends Model
     public function packages()
     {
         return $this->hasMany(ShipmentPackage::class);
+    }
+
+    public function estimatedRateCard()
+    {
+        return $this->belongsTo(ShipmentRateCard::class, 'estimated_rate_card_id');
     }
 
     public function legs()
@@ -141,14 +150,27 @@ class Shipment extends Model
     {
         $this->loadMissing('packages');
 
-        $chargeable = $this->packages->sum('chargeable_weight_kg');
-        $this->estimated_price = round($chargeable * (float) $this->estimated_unit_rate, 2);
+        $quantity = $this->pricingQuantity((string) $this->pricing_basis);
+        $estimated = round($quantity * (float) $this->estimated_unit_rate, 2);
+        $minimumCharge = (float) ($this->estimatedRateCard?->minimum_charge ?? 0);
+        $this->estimated_price = $minimumCharge > 0 ? max($estimated, $minimumCharge) : $estimated;
 
         if ($this->final_unit_rate !== null) {
-            $this->final_price = round($chargeable * (float) $this->final_unit_rate, 2);
+            $this->final_price = round($quantity * (float) $this->final_unit_rate, 2);
         }
 
         $this->save();
+    }
+
+    public function pricingQuantity(?string $basis = null): float
+    {
+        $this->loadMissing('packages');
+
+        return match ($basis ?: 'chargeable_kg') {
+            'cbm' => (float) $this->packages->sum('cbm'),
+            'shipment' => 1.0,
+            default => (float) $this->packages->sum('chargeable_weight_kg'),
+        };
     }
 
     public function lockPricing(?int $userId = null): void
@@ -170,8 +192,20 @@ class Shipment extends Model
         $currentIndex = array_search($this->status, self::STATUSES, true);
         $nextIndex = array_search($nextStatus, self::STATUSES, true);
 
-        if ($nextIndex < $currentIndex) {
-            throw new InvalidArgumentException('Shipment status cannot move backwards.');
+        if ($nextIndex === $currentIndex) {
+            return;
+        }
+
+        if ($nextIndex !== $currentIndex + 1) {
+            throw new InvalidArgumentException('Shipment status must move forward one step at a time.');
+        }
+
+        if ($nextStatus === 'delivered' && ! $this->pod()->exists()) {
+            throw new InvalidArgumentException('Upload shipment POD before marking the shipment delivered.');
+        }
+
+        if ($nextStatus === 'final_invoiced' && ! $this->invoices()->where('invoice_type', 'final')->exists()) {
+            throw new InvalidArgumentException('Create the final invoice before moving the shipment to final invoiced.');
         }
 
         $this->status = $nextStatus;

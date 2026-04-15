@@ -64,8 +64,11 @@ class ShipmentPackage extends Model
         $actualWeight = max((float) $this->actual_weight_kg, 0.0);
 
         $volumeCm = $length * $width * $height * $pieces;
+        $divisor = (int) ($this->shipment?->volumetric_divisor ?: self::VOLUMETRIC_DIVISOR);
+        $divisor = max($divisor, 1);
+
         $this->cbm = round($volumeCm / 1000000, 4);
-        $this->volumetric_weight_kg = round($volumeCm / self::VOLUMETRIC_DIVISOR, 3);
+        $this->volumetric_weight_kg = round($volumeCm / $divisor, 3);
         $this->chargeable_weight_kg = round(max($actualWeight, (float) $this->volumetric_weight_kg), 3);
     }
 }

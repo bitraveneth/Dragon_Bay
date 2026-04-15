@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CommissionReportController;
 use App\Http\Controllers\Admin\CommissionSettlementController;
 use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Api\AgentController as AgentApiController;
 use App\Http\Controllers\Admin\PurchaseBillController;
 use App\Http\Controllers\Admin\ProductionController;
 use App\Http\Controllers\Admin\ReportController;
@@ -53,6 +54,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -1198,6 +1200,161 @@ class SystemCalculationTest extends TestCase
         $this->assertEquals('bulk', $bulkOrder->order_type);
         $this->assertSame('credit', $bulkOrder->payment_mode);
         $this->assertTrue((bool) $bulkOrder->is_credit_used);
+    }
+
+    public function test_credit_limit_counts_existing_uninvoiced_credit_orders(): void
+    {
+        $agent = Agent::create([
+            'name' => 'Agent Credit Gate',
+            'credit_limit' => 1000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $client = Client::create([
+            'name' => 'Client Credit Gate',
+            'agent_id' => $agent->id,
+            'currency' => 'BDT',
+            'credit_limit' => 1000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $product = Product::create([
+            'sku' => 'SKU-CREDIT-GATE',
+            'name' => 'Credit Gate Product',
+            'product_type' => 'finished',
+            'is_active' => true,
+            'base_price' => 100,
+        ]);
+
+        StockEntry::create([
+            'warehouse_id' => 1,
+            'product_id' => $product->id,
+            'quantity' => 20,
+            'status' => 'available',
+        ]);
+
+        $controller = app(OrderController::class);
+
+        $controller->store(new Request([
+            'client_id' => $client->id,
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'payment_mode' => 'credit',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 6, 'unit_price' => 100],
+            ],
+        ]));
+
+        $this->assertSame(1, Order::count());
+        $this->assertTrue((bool) Order::firstOrFail()->is_credit_used);
+
+        try {
+            $controller->store(new Request([
+                'client_id' => $client->id,
+                'agent_id' => $agent->id,
+                'order_type' => 'regular',
+                'payment_mode' => 'credit',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 5, 'unit_price' => 100],
+                ],
+            ]));
+
+            $this->fail('Expected credit-limit validation to block the second order.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString(
+                'Credit limit exceeded.',
+                $exception->errors()['client_id'][0] ?? ''
+            );
+        }
+
+        $this->assertSame(1, Order::count());
+        $this->assertEquals(14.0, (float) StockEntry::where('status', 'available')->sum('quantity'));
+    }
+
+    public function test_agent_api_credit_orders_respect_client_credit_limit(): void
+    {
+        $agent = Agent::create([
+            'name' => 'Agent API Credit Gate',
+            'credit_limit' => 700,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $client = Client::create([
+            'name' => 'Client API Credit Gate',
+            'agent_id' => $agent->id,
+            'currency' => 'BDT',
+            'credit_limit' => 700,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $user = User::create([
+            'name' => 'Agent Mobile User',
+            'email' => 'agent-mobile@example.test',
+            'password' => 'secret',
+            'role' => 'sales_officer',
+            'agent_id' => $agent->id,
+        ]);
+
+        $product = Product::create([
+            'sku' => 'SKU-API-CREDIT',
+            'name' => 'API Credit Product',
+            'product_type' => 'finished',
+            'is_active' => true,
+            'base_price' => 100,
+        ]);
+
+        StockEntry::create([
+            'warehouse_id' => 1,
+            'product_id' => $product->id,
+            'quantity' => 20,
+            'status' => 'available',
+        ]);
+
+        $controller = app(AgentApiController::class);
+
+        $firstRequest = new Request([
+            'client_id' => $client->id,
+            'order_type' => 'regular',
+            'payment_mode' => 'credit',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 5, 'unit_price' => 100],
+            ],
+        ]);
+        $firstRequest->setUserResolver(fn () => $user);
+
+        $response = $controller->storeOrder($firstRequest);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame(1, Order::count());
+        $this->assertTrue((bool) Order::firstOrFail()->is_credit_used);
+
+        $secondRequest = new Request([
+            'client_id' => $client->id,
+            'order_type' => 'regular',
+            'payment_mode' => 'credit',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 3, 'unit_price' => 100],
+            ],
+        ]);
+        $secondRequest->setUserResolver(fn () => $user);
+
+        try {
+            $controller->storeOrder($secondRequest);
+
+            $this->fail('Expected agent API credit-limit validation to block the second order.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString(
+                'Credit limit exceeded.',
+                $exception->errors()['client_id'][0] ?? ''
+            );
+        }
+
+        $this->assertSame(1, Order::count());
+        $this->assertEquals(15.0, (float) StockEntry::where('status', 'available')->sum('quantity'));
     }
 
     public function test_delivery_completion_auto_creates_invoice_for_billable_orders(): void

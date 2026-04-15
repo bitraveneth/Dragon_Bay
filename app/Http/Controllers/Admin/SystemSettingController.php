@@ -11,8 +11,33 @@ use RuntimeException;
 
 class SystemSettingController extends Controller
 {
+    protected const CURRENCY_CODES = [
+        'AED',
+        'AUD',
+        'BDT',
+        'CAD',
+        'CHF',
+        'CNY',
+        'EUR',
+        'GBP',
+        'HKD',
+        'INR',
+        'JPY',
+        'KWD',
+        'MYR',
+        'NPR',
+        'PKR',
+        'QAR',
+        'SAR',
+        'SGD',
+        'THB',
+        'USD',
+    ];
+
     public function index(DatabaseBackupManager $backupManager)
     {
+        $baseCurrencyCode = strtoupper((string) SystemSettings::get('currency_code', config('app.currency', 'BDT')));
+
         return view('admin.settings.index', [
             'settings' => [
                 'app_name' => config('app.name'),
@@ -21,8 +46,9 @@ class SystemSettingController extends Controller
                 'company_email' => SystemSettings::get('company_email'),
                 'company_phone' => SystemSettings::get('company_phone'),
                 'company_address' => SystemSettings::get('company_address'),
-                'currency_code' => SystemSettings::get('currency_code', config('app.currency', 'BDT')),
+                'currency_code' => $baseCurrencyCode,
                 'currency_symbol' => SystemSettings::get('currency_symbol', '৳'),
+                'exchange_rates' => $this->exchangeRateSettings($baseCurrencyCode),
                 'brand_primary_color' => SystemSettings::sanitizeHexColor(SystemSettings::get('brand_primary_color')) ?? '#465FFF',
                 'brand_secondary_color' => SystemSettings::sanitizeHexColor(SystemSettings::get('brand_secondary_color')) ?? '#3641F5',
                 'text_color_light' => SystemSettings::sanitizeHexColor(SystemSettings::get('text_color_light')) ?? SystemSettings::defaultTextColorLight(),
@@ -49,6 +75,7 @@ class SystemSettingController extends Controller
                 'textLight' => SystemSettings::defaultTextColorLight(),
                 'textDark' => SystemSettings::defaultTextColorDark(),
             ],
+            'exchangeRateCurrencies' => self::CURRENCY_CODES,
             'backups' => $backupManager->list(),
         ]);
     }
@@ -61,8 +88,10 @@ class SystemSettingController extends Controller
             'company_email' => 'nullable|email|max:120',
             'company_phone' => 'nullable|string|max:40',
             'company_address' => 'nullable|string|max:500',
-            'currency_code' => 'required|string|max:10',
+            'currency_code' => 'required|string|max:10|in:' . implode(',', self::CURRENCY_CODES),
             'currency_symbol' => 'nullable|string|max:10',
+            'exchange_rates' => 'nullable|array',
+            'exchange_rates.*' => 'nullable|numeric|min:0.000001|max:999999999',
             'brand_primary_color' => ['required', 'regex:/^#?[0-9a-fA-F]{6}$/'],
             'brand_secondary_color' => ['required', 'regex:/^#?[0-9a-fA-F]{6}$/'],
             'text_color_light' => ['required', 'regex:/^#?[0-9a-fA-F]{6}$/'],
@@ -120,6 +149,25 @@ class SystemSettingController extends Controller
             $settings[$colorKey] = SystemSettings::sanitizeHexColor($settings[$colorKey] ?? null);
         }
 
+        $baseCurrencyCode = strtoupper(trim((string) $settings['currency_code']));
+        $settings['currency_code'] = $baseCurrencyCode;
+        $exchangeRateKeysToForget = [];
+
+        foreach (self::CURRENCY_CODES as $currencyCode) {
+            if ($currencyCode === $baseCurrencyCode) {
+                continue;
+            }
+
+            $key = $this->exchangeRateKey($currencyCode, $baseCurrencyCode);
+            $value = $data['exchange_rates'][$currencyCode] ?? null;
+
+            if ($value !== null && $value !== '') {
+                $settings[$key] = round((float) $value, 6);
+            } else {
+                $exchangeRateKeysToForget[] = $key;
+            }
+        }
+
         SystemSettings::forget(['app_name']);
 
         $existingLogoPath = SystemSettings::get('company_logo_path');
@@ -137,6 +185,7 @@ class SystemSettingController extends Controller
             $settings['company_logo_path'] = $request->file('company_logo')->store('system-settings', 'public');
         }
 
+        SystemSettings::forget($exchangeRateKeysToForget);
         SystemSettings::putMany($settings);
 
         return redirect()
@@ -203,5 +252,26 @@ class SystemSettingController extends Controller
         return redirect()
             ->route('admin.settings.index')
             ->with('status', 'Database restored from backup. A pre-restore safety backup was created as ' . $safetyBackup . '.');
+    }
+
+    protected function exchangeRateSettings(string $baseCurrencyCode): array
+    {
+        $baseCurrencyCode = strtoupper($baseCurrencyCode);
+        $rates = [];
+
+        foreach (self::CURRENCY_CODES as $currencyCode) {
+            if ($currencyCode === $baseCurrencyCode) {
+                continue;
+            }
+
+            $rates[$currencyCode] = SystemSettings::get($this->exchangeRateKey($currencyCode, $baseCurrencyCode));
+        }
+
+        return $rates;
+    }
+
+    protected function exchangeRateKey(string $currencyCode, string $baseCurrencyCode): string
+    {
+        return 'exchange_rate_' . strtoupper($currencyCode) . '_' . strtoupper($baseCurrencyCode);
     }
 }

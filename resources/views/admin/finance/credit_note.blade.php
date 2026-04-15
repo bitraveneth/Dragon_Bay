@@ -1,7 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
-@php($currencyCode = config('app.currency', 'BDT'))
+@php
+    $baseCurrencyCode = \App\Support\Currency::baseCode();
+    $currencyCode = $invoice->currency_code ?? $baseCurrencyCode;
+@endphp
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header with breadcrumb -->
     <div class="mb-6">
@@ -135,7 +138,7 @@
                             value="{{ old('amount') }}"
                         >
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 dark:text-gray-400 sm:text-sm">BDT</span>
+                            <span class="text-gray-500 dark:text-gray-400 sm:text-sm">{{ $currencyCode }}</span>
                         </div>
                     </div>
                     @error('amount')

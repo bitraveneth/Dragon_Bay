@@ -62,6 +62,8 @@
         ->map(fn ($symbol, $code) => ['code' => $code, 'symbol' => $symbol])
         ->values()
         ->all();
+    $exchangeRates = old('exchange_rates', $settings['exchange_rates'] ?? []);
+    $exchangeRateCurrencies = $exchangeRateCurrencies ?? collect($currencyOptions)->pluck('code')->all();
     $brandPreviewName = old('brand_name', $settings['brand_name'])
         ?: old('company_name', $settings['company_name'])
         ?: $settings['app_name'];
@@ -74,7 +76,7 @@
     ));
     $tabErrorMap = [
         'brand' => ['brand_name', 'company_name', 'company_email', 'company_phone', 'company_address', 'company_logo', 'remove_logo'],
-        'currency' => ['currency_code', 'currency_symbol'],
+        'currency' => ['currency_code', 'currency_symbol', 'exchange_rates'],
         'colors' => ['brand_primary_color', 'brand_secondary_color', 'text_color_light', 'text_color_dark', 'default_theme_mode'],
         'sms' => ['sms_provider', 'sms_base_url', 'sms_api_key', 'sms_api_secret', 'sms_sender_id'],
         'smtp' => ['smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password', 'mail_from_address', 'mail_from_name'],
@@ -422,6 +424,40 @@
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 border-t border-gray-100 pt-5 dark:border-gray-800">
+                    <div class="mb-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Exchange rates</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Store default rates for client invoices. Leave a rate blank when you want the shipment invoice screen to require manual FX entry.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        @foreach($exchangeRateCurrencies as $currencyCode)
+                            @continue(! isset($settingsPageState['currencySymbols'][$currencyCode]))
+                            <div x-show="currencyCode !== @js($currencyCode)" x-cloak>
+                                <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    1 {{ $currencyCode }} equals
+                                </label>
+                                <div class="flex rounded-lg border border-gray-200 bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800">
+                                    <input type="number"
+                                           step="0.000001"
+                                           min="0.000001"
+                                           name="exchange_rates[{{ $currencyCode }}]"
+                                           value="{{ old('exchange_rates.' . $currencyCode, $exchangeRates[$currencyCode] ?? '') }}"
+                                           placeholder="0.000000"
+                                           class="min-w-0 flex-1 rounded-l-lg border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-0 dark:text-white" />
+                                    <span class="inline-flex items-center rounded-r-lg border-l border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                          x-text="currencyCode"></span>
+                                </div>
+                                @error('exchange_rates.' . $currencyCode)
+                                    <p class="mt-1 text-xs text-error-600 dark:text-error-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </section>

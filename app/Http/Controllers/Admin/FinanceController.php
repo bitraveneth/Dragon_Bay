@@ -15,6 +15,7 @@ use App\Models\Receipt;
 use App\Models\User;
 use App\Notifications\SystemAlertNotification;
 use App\Services\CommissionSettlementService;
+use App\Support\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -160,7 +161,7 @@ class FinanceController extends Controller
             'vat_amount' => round($vatAmount, 2),
             'withholding' => 0,
             'status' => 'issued',
-        ];
+        ] + Currency::invoicePayload($order->client?->currency ?? null);
 
         // Withholding rate comes from the client profile; fall back to agent if client not set
         $withholdingRate = (float) ($order->client?->withholding_rate ?? $order->agent?->withholding_rate ?? 0);
@@ -193,33 +194,33 @@ class FinanceController extends Controller
 
             $invoiceDescription = 'Invoice ' . $invoice->number;
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Accounts Receivable',
                 'description' => $invoiceDescription,
                 'debit' => $invoice->net_total + $invoice->vat_amount,
                 'credit' => 0,
                 'order_id' => $order->id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Sales Revenue',
                 'description' => $invoiceDescription,
                 'debit' => 0,
                 'credit' => $invoice->net_total,
                 'order_id' => $order->id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             if ((float) $invoice->vat_amount > 0) {
-                LedgerEntry::create([
+                LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                     'account' => 'VAT Payable',
                     'description' => 'VAT on ' . $invoice->number,
                     'debit' => 0,
                     'credit' => $invoice->vat_amount,
                     'order_id' => $order->id,
                     'invoice_id' => $invoice->id,
-                ]);
+                ]));
             }
 
             $this->recordWithholdingLedgerAdjustment(
@@ -259,27 +260,27 @@ class FinanceController extends Controller
                 'payment_method' => $data['payment_method'] ?? null,
                 'received_at' => $data['received_at'] ?? Carbon::today(),
                 'notes' => $data['notes'] ?? null,
-            ]);
+            ] + Currency::receiptPayload($invoice->currency_code ?? null, $invoice->exchange_rate ?? null));
 
             $description = $this->receiptLedgerDescription($receipt, $invoice);
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Bank',
                 'description' => $description,
                 'debit' => $receipt->amount,
                 'credit' => 0,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Accounts Receivable',
                 'description' => $description,
                 'debit' => 0,
                 'credit' => $receipt->amount,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             $invoice->recalculateStatus();
         });
@@ -292,7 +293,7 @@ class FinanceController extends Controller
             ['super_admin', 'admin', 'accounts_officer'],
             [
                 'title' => 'Client payment recorded',
-                'message' => 'Payment of BDT ' . number_format((float) $receipt->amount, 2) . ' recorded for invoice ' . $invoice->number . '.',
+                'message' => 'Payment of ' . ($invoice->currency_code ?? Currency::baseCode()) . ' ' . number_format((float) $receipt->amount, 2) . ' recorded for invoice ' . $invoice->number . '.',
                 'variant' => 'success',
                 'source' => 'Finance',
                 'link' => route('admin.finance.show', $invoice),
@@ -368,40 +369,40 @@ class FinanceController extends Controller
                 'issued_at' => Carbon::today(),
                 'amount' => $data['amount'],
                 'reason' => $data['reason'] ?? null,
-            ]);
+            ] + Currency::creditNotePayload($invoice->currency_code ?? null, $invoice->exchange_rate ?? null));
 
             $credit->update([
                 'number' => $this->formatCreditNoteNumber($credit->id),
             ]);
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Sales Returns',
                 'description' => 'Credit note ' . $credit->number,
                 'debit' => $creditBreakdown['net'],
                 'credit' => 0,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             if ($creditBreakdown['vat'] > 0) {
-                LedgerEntry::create([
+                LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                     'account' => 'VAT Payable',
                     'description' => 'VAT reversal on ' . $credit->number,
                     'debit' => $creditBreakdown['vat'],
                     'credit' => 0,
                     'order_id' => $invoice->order_id,
                     'invoice_id' => $invoice->id,
-                ]);
+                ]));
             }
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Accounts Receivable',
                 'description' => 'Credit note ' . $credit->number,
                 'debit' => 0,
                 'credit' => $credit->amount,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             $invoice->recalculateStatus();
         });
@@ -565,23 +566,23 @@ class FinanceController extends Controller
 
             $description = 'Advance applied from ' . $agent->name . ' to ' . $invoice->number;
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Agent Advances',
                 'description' => $description,
                 'debit' => $applyAmount,
                 'credit' => 0,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Accounts Receivable',
                 'description' => $description,
                 'debit' => 0,
                 'credit' => $applyAmount,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             $remainingOutstanding -= $applyAmount;
         }
@@ -596,46 +597,55 @@ class FinanceController extends Controller
         }
 
         if ($delta > 0) {
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Withholding Tax Receivable',
                 'description' => $description,
                 'debit' => $delta,
                 'credit' => 0,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
-            LedgerEntry::create([
+            LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
                 'account' => 'Accounts Receivable',
                 'description' => $description,
                 'debit' => 0,
                 'credit' => $delta,
                 'order_id' => $invoice->order_id,
                 'invoice_id' => $invoice->id,
-            ]);
+            ]));
 
             return;
         }
 
         $amount = abs($delta);
 
-        LedgerEntry::create([
+        LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
             'account' => 'Accounts Receivable',
             'description' => $description,
             'debit' => $amount,
             'credit' => 0,
             'order_id' => $invoice->order_id,
             'invoice_id' => $invoice->id,
-        ]);
+        ]));
 
-        LedgerEntry::create([
+        LedgerEntry::create($this->ledgerPayloadForInvoice($invoice, [
             'account' => 'Withholding Tax Receivable',
             'description' => $description,
             'debit' => 0,
             'credit' => $amount,
             'order_id' => $invoice->order_id,
             'invoice_id' => $invoice->id,
-        ]);
+        ]));
+    }
+
+    protected function ledgerPayloadForInvoice(Invoice $invoice, array $payload): array
+    {
+        return Currency::ledgerPayload(
+            $payload,
+            $invoice->currency_code ?? Currency::baseCode(),
+            $invoice->exchange_rate ?? null
+        );
     }
 
     protected function notifyRoles(array $roles, array $payload): void

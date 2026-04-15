@@ -3,6 +3,7 @@
 @section('title', $invoice->number)
 
 @section('content')
+@php($currencyCode = $invoice->currency_code ?: strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
 <div class="space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
@@ -15,8 +16,8 @@
     <div class="grid gap-4 md:grid-cols-4">
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Issued</div><div class="mt-2 text-lg font-semibold">{{ $invoice->issued_at?->format('d M Y') ?: '-' }}</div></div>
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Due</div><div class="mt-2 text-lg font-semibold">{{ $invoice->due_at?->format('d M Y') ?: '-' }}</div></div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Cash Total</div><div class="mt-2 text-lg font-semibold">BDT {{ number_format($invoice->cash_total, 2) }}</div></div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Outstanding</div><div class="mt-2 text-lg font-semibold">BDT {{ number_format($invoice->outstanding, 2) }}</div></div>
+        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Cash Total</div><div class="mt-2 text-lg font-semibold">{{ $currencyCode }} {{ number_format($invoice->cash_total, 2) }}</div></div>
+        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Outstanding</div><div class="mt-2 text-lg font-semibold">{{ $currencyCode }} {{ number_format($invoice->outstanding, 2) }}</div></div>
     </div>
 
     <section class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
@@ -36,8 +37,8 @@
                         <tr>
                             <td class="py-3">{{ $item->description }}</td>
                             <td class="py-3 text-right">{{ number_format((float) $item->quantity) }}</td>
-                            <td class="py-3 text-right">BDT {{ number_format((float) $item->unit_price, 2) }}</td>
-                            <td class="py-3 text-right">BDT {{ number_format((float) $item->line_total, 2) }}</td>
+                            <td class="py-3 text-right">{{ $currencyCode }} {{ number_format((float) $item->unit_price, 2) }}</td>
+                            <td class="py-3 text-right">{{ $currencyCode }} {{ number_format((float) $item->line_total, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -52,7 +53,7 @@
                 @forelse($invoice->receipts as $receipt)
                     <div class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm dark:border-gray-800">
                         <div>{{ $receipt->received_at?->format('d M Y') ?: '-' }}</div>
-                        <div>BDT {{ number_format((float) $receipt->amount, 2) }}</div>
+                        <div>{{ $receipt->currency_code ?: $currencyCode }} {{ number_format((float) $receipt->amount, 2) }}</div>
                     </div>
                 @empty
                     <p class="text-sm text-gray-500 dark:text-gray-400">No receipts recorded.</p>
@@ -66,7 +67,7 @@
                 @forelse($invoice->creditNotes as $credit)
                     <div class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm dark:border-gray-800">
                         <div>{{ $credit->number ?: 'Credit note' }}</div>
-                        <div>BDT {{ number_format((float) $credit->amount, 2) }}</div>
+                        <div>{{ $credit->currency_code ?: $currencyCode }} {{ number_format((float) $credit->amount, 2) }}</div>
                     </div>
                 @empty
                     <p class="text-sm text-gray-500 dark:text-gray-400">No credit notes recorded.</p>

@@ -60,6 +60,7 @@ use App\Http\Controllers\Admin\ReportsDashboardController;
 use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\AgentAdvanceController;
 use App\Http\Controllers\Admin\ShipmentController;
+use App\Http\Controllers\Admin\ShipmentRateCardController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\ClientPortalController;
 use Illuminate\Support\Facades\Route;
@@ -339,6 +340,9 @@ Route::middleware(['auth', 'module.visibility'])->prefix('admin')->name('admin.'
     Route::post('shipments/{shipment}/expenses/{expense}/approve', [ShipmentController::class, 'approveExpense'])->middleware('perm:logistics.expenses')->name('shipments.expenses.approve');
     Route::post('shipments/{shipment}/pricing/lock', [ShipmentController::class, 'lockPricing'])->middleware('perm:logistics.pricing')->name('shipments.pricing.lock');
     Route::post('shipments/{shipment}/invoice', [ShipmentController::class, 'createInvoice'])->middleware('perm:finance.invoice.issue')->name('shipments.invoice');
+    Route::get('shipment-rate-cards', [ShipmentRateCardController::class, 'index'])->middleware('perm:logistics.pricing')->name('shipment-rate-cards.index');
+    Route::post('shipment-rate-cards', [ShipmentRateCardController::class, 'store'])->middleware('perm:logistics.pricing')->name('shipment-rate-cards.store');
+    Route::delete('shipment-rate-cards/{rateCard}', [ShipmentRateCardController::class, 'destroy'])->middleware('perm:logistics.pricing')->name('shipment-rate-cards.destroy');
 
     Route::get('deliveries', [DeliveryController::class, 'index'])->middleware('perm:control.warehouses')->name('deliveries.index');
     Route::get('deliveries/pod', [DeliveryController::class, 'podIndex'])->middleware('perm:control.warehouses')->name('deliveries.pod-index');

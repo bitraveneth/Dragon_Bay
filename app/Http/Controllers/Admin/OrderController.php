@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
-use App\Models\AgentAdvance;
 use App\Models\AgentPriceList;
 use App\Models\AgentCommissionRule;
+use App\Models\Client;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Support\CommissionCalculator;
+use App\Services\ClientCreditService;
 
 class OrderController extends Controller
 {
@@ -520,35 +521,11 @@ class OrderController extends Controller
             return;
         }
 
-        $client = \App\Models\Client::find($order->client_id);
+        $client = Client::find($order->client_id);
         if (! $client) {
             return;
         }
 
-        $creditLimit = (float) ($client->credit_limit ?? 0);
-        if ($creditLimit <= 0) {
-            return;
-        }
-
-        $existingOutstanding = Invoice::whereHas('order', function ($query) use ($client) {
-            $query->where('client_id', $client->id);
-        })->get()->sum(fn (Invoice $invoice) => (float) $invoice->outstanding);
-
-        // Also check any advances linked to the client's assigned agent
-        $agentId = $client->agent_id;
-        $availableAdvances = $agentId
-            ? AgentAdvance::where('agent_id', $agentId)
-                ->whereIn('status', ['open', 'partial'])
-                ->get()
-                ->sum(fn (AgentAdvance $advance) => $advance->available_amount)
-            : 0;
-
-        $projectedExposure = max($existingOutstanding + $proposedTotal - $availableAdvances, 0);
-
-        if ($projectedExposure > $creditLimit + 0.00001) {
-            throw ValidationException::withMessages([
-                'client_id' => ['This order exceeds the client credit limit after considering open advances/prepayments.'],
-            ]);
-        }
+        app(ClientCreditService::class)->ensureWithinLimit($client, $proposedTotal, $order);
     }
 }

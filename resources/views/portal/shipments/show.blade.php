@@ -3,6 +3,7 @@
 @section('title', $shipment->shipment_no)
 
 @section('content')
+@php($currencyCode = strtoupper((string) ($client->currency ?: \App\Support\Currency::baseCode())))
 <div class="space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
@@ -16,7 +17,7 @@
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Actual KG</div><div class="mt-2 text-xl font-semibold">{{ number_format($shipment->total_actual_weight_kg, 3) }}</div></div>
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">CBM</div><div class="mt-2 text-xl font-semibold">{{ number_format($shipment->total_cbm, 4) }}</div></div>
         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Chargeable KG</div><div class="mt-2 text-xl font-semibold">{{ number_format($shipment->total_chargeable_weight_kg, 3) }}</div></div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Final Price</div><div class="mt-2 text-xl font-semibold">{{ $shipment->final_price === null ? '-' : 'BDT ' . number_format((float) $shipment->final_price, 2) }}</div></div>
+        <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><div class="text-xs uppercase text-gray-500">Final Price</div><div class="mt-2 text-xl font-semibold">{{ $shipment->final_price === null ? '-' : $currencyCode . ' ' . number_format((float) $shipment->final_price, 2) }}</div></div>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-2">
