@@ -107,9 +107,14 @@ jobs:
       - name: Trust VPS host key
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          fi
 
       - name: Ensure deploy path exists on VPS
         env:
@@ -132,6 +137,7 @@ jobs:
             --exclude 'node_modules/'          \
             --exclude 'vendor/'                \
             --exclude 'public/hot'             \
+            --exclude 'public/storage'         \
             --exclude 'storage/'               \
             --exclude 'bootstrap/cache/'       \
             --exclude 'tests/'                 \
@@ -164,10 +170,18 @@ jobs:
             ( crontab -l 2>/dev/null | grep -v "\$MARKER" || true; echo "\$ENTRY" ) | crontab -
 
             step "Ensure .env file"
-            [ ! -f .env ] && [ -f .env.example ] && cp .env.example .env && echo ".env created" || echo ".env exists"
+            if [ ! -f .env ]; then
+              echo "ERROR: .env is missing on VPS. Create the production .env before deploying."
+              exit 1
+            fi
+            echo ".env exists"
 
             step "Ensure APP_KEY is set"
-            grep -q '^APP_KEY=$' .env 2>/dev/null && php artisan key:generate --force || echo "APP_KEY already set"
+            if ! grep -Eq '^APP_KEY=base64:.+' .env; then
+              php artisan key:generate --force
+            else
+              echo "APP_KEY already set"
+            fi
 
             step "Force APP_DEBUG=false"
             grep -q '^APP_DEBUG=' .env \
@@ -187,7 +201,8 @@ jobs:
             step "Run database migrations"
             php artisan migrate --force
 
-            step "Seed permissions"
+            step "Seed roles and permissions"
+            php artisan db:seed --class="Database\\Seeders\\RolesSeeder" --force
             php artisan db:seed --class="Database\\Seeders\\Users\\PermissionsSeeder" --force
 
             step "Clear & rebuild Laravel caches"
