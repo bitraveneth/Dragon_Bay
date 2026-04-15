@@ -9,10 +9,13 @@ use App\Models\DeliveryRoute;
 use App\Models\Order;
 use App\Models\StockEntry;
 use App\Models\StockMovement;
+use App\Models\User;
 use App\Models\Vehicle;
+use App\Notifications\SystemAlertNotification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -267,6 +270,26 @@ class DeliveryController extends Controller
             }
         });
 
+        if ($originalStatus !== $delivery->status) {
+            $this->notifyRoles(
+                ['super_admin', 'admin', 'sales_officer', 'delivery_coordinator', 'warehouse_officer'],
+                [
+                    'title' => 'Delivery status updated',
+                    'message' => 'Delivery #' . $delivery->id . ' for order #'
+                        . ($delivery->order_id ?? 'N/A') . ' is now '
+                        . ucwords(str_replace('_', ' ', $delivery->status)) . '.',
+                    'variant' => 'info',
+                    'source' => 'Logistics',
+                    'link' => route('admin.deliveries.edit', $delivery),
+                    'context' => [
+                        'delivery_id' => $delivery->id,
+                        'order_id' => $delivery->order_id,
+                        'status' => $delivery->status,
+                    ],
+                ]
+            );
+        }
+
         return back()->with('status', 'Delivery updated.');
     }
 
@@ -507,5 +530,17 @@ class DeliveryController extends Controller
         }
 
         $delivery->pod()->updateOrCreate([], $podPayload);
+    }
+
+    protected function notifyRoles(array $roles, array $payload): void
+    {
+        if (! Schema::hasTable('notifications') || ! Schema::hasTable('users')) {
+            return;
+        }
+
+        User::query()
+            ->get()
+            ->filter(fn (User $user) => $user->hasAnyRole($roles))
+            ->each(fn (User $user) => $user->notify(new SystemAlertNotification($payload)));
     }
 }

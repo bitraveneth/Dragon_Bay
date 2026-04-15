@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\OrderItem;
+use App\Models\User;
 use App\Models\Vehicle;
+use App\Notifications\SystemAlertNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class DriverController extends Controller
 {
@@ -126,6 +129,7 @@ class DriverController extends Controller
             'exception_notes' => 'nullable|string',
         ]);
 
+        $originalStatus = $delivery->status;
         $delivery->status = $data['status'];
         if (! empty($data['exception_notes'])) {
             $delivery->exception_notes = $data['exception_notes'];
@@ -138,6 +142,10 @@ class DriverController extends Controller
                 'signed_by' => $employee->name ?? $user->name,
                 'delivered_at' => now(),
             ]);
+        }
+
+        if ($originalStatus !== $delivery->status) {
+            $this->notifyDeliveryStatusChanged($delivery);
         }
 
         return response()->json($delivery);
@@ -163,6 +171,7 @@ class DriverController extends Controller
 
         $path = $request->file('pod_photo')->store('deliveries', 'public');
 
+        $originalStatus = $delivery->status;
         $delivery->pod_photo = $path;
 
         if (! empty($data['exception_notes'])) {
@@ -186,6 +195,10 @@ class DriverController extends Controller
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
         ]);
+
+        if ($originalStatus !== $delivery->status) {
+            $this->notifyDeliveryStatusChanged($delivery);
+        }
 
         return response()->json($delivery);
     }
@@ -269,5 +282,38 @@ class DriverController extends Controller
             'planned_crates' => $crateLoad,
             'utilization_percent' => $utilization,
         ]);
+    }
+
+    protected function notifyDeliveryStatusChanged(Delivery $delivery): void
+    {
+        $this->notifyRoles(
+            ['super_admin', 'admin', 'sales_officer', 'delivery_coordinator', 'warehouse_officer'],
+            [
+                'title' => 'Delivery status updated',
+                'message' => 'Delivery #' . $delivery->id . ' for order #'
+                    . ($delivery->order_id ?? 'N/A') . ' is now '
+                    . ucwords(str_replace('_', ' ', $delivery->status)) . '.',
+                'variant' => 'info',
+                'source' => 'Logistics',
+                'link' => route('admin.deliveries.edit', $delivery),
+                'context' => [
+                    'delivery_id' => $delivery->id,
+                    'order_id' => $delivery->order_id,
+                    'status' => $delivery->status,
+                ],
+            ]
+        );
+    }
+
+    protected function notifyRoles(array $roles, array $payload): void
+    {
+        if (! Schema::hasTable('notifications') || ! Schema::hasTable('users')) {
+            return;
+        }
+
+        User::query()
+            ->get()
+            ->filter(fn (User $user) => $user->hasAnyRole($roles))
+            ->each(fn (User $user) => $user->notify(new SystemAlertNotification($payload)));
     }
 }

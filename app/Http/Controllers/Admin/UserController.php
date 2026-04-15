@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\Permission as PermissionGate;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Permission as PermissionModel;
 use App\Models\Role;
 use App\Models\User;
@@ -98,6 +99,12 @@ class UserController extends Controller
         ]);
         $this->syncPrimaryRole($user);
 
+        AuditLog::record('users.created', $user, [], [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+        ]);
+
         return redirect()
             ->route('admin.users.index')
             ->with('status', 'User created. Remember to share credentials securely.');
@@ -180,6 +187,17 @@ class UserController extends Controller
             }
         }
 
+        $oldValues = [
+            'primary_role' => $user->role,
+            'role_keys' => method_exists($user, 'roleKeys') ? $user->roleKeys() : array_values(array_filter([$user->role])),
+            'warehouse_ids' => Schema::hasTable('user_warehouse_scopes')
+                ? UserWarehouseScope::where('user_id', $user->id)->orderBy('warehouse_id')->pluck('warehouse_id')->map(fn ($id) => (int) $id)->all()
+                : [],
+            'overrides' => Schema::hasTable('user_permissions')
+                ? UserPermission::where('user_id', $user->id)->orderBy('permission_name')->get(['permission_name', 'allowed'])->mapWithKeys(fn ($row) => [$row->permission_name => (bool) $row->allowed])->all()
+                : [],
+        ];
+
         DB::transaction(function () use ($data, $user) {
             $primaryRole = $data['primary_role'];
             $extraRoles = collect($data['extra_roles'] ?? [])
@@ -249,6 +267,19 @@ class UserController extends Controller
                 }
             }
         });
+
+        $user->refresh();
+
+        AuditLog::record('users.access_updated', $user, $oldValues, [
+            'primary_role' => $user->role,
+            'role_keys' => method_exists($user, 'roleKeys') ? $user->roleKeys() : array_values(array_filter([$user->role])),
+            'warehouse_ids' => Schema::hasTable('user_warehouse_scopes')
+                ? UserWarehouseScope::where('user_id', $user->id)->orderBy('warehouse_id')->pluck('warehouse_id')->map(fn ($id) => (int) $id)->all()
+                : [],
+            'overrides' => Schema::hasTable('user_permissions')
+                ? UserPermission::where('user_id', $user->id)->orderBy('permission_name')->get(['permission_name', 'allowed'])->mapWithKeys(fn ($row) => [$row->permission_name => (bool) $row->allowed])->all()
+                : [],
+        ]);
 
         return redirect()
             ->route('admin.users.access.edit', $user)

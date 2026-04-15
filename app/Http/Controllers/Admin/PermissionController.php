@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\Permission as PermissionHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Role;
@@ -128,7 +129,13 @@ class PermissionController extends Controller
             ? $this->canonicalGroupLabel($data['group'])
             : null;
 
-        Permission::create($data);
+        $permission = Permission::create($data);
+
+        AuditLog::record('permissions.created', $permission, [], [
+            'name' => $permission->name,
+            'label' => $permission->label,
+            'group' => $permission->group,
+        ]);
 
         return redirect()->route('admin.permissions.index')
             ->with('status', 'Permission created.');
@@ -175,6 +182,10 @@ class PermissionController extends Controller
             }
         }
 
+        $oldValues = $submittedRoles->mapWithKeys(function (string $role) {
+            return [$role => RolePermission::where('role', $role)->orderBy('permission_name')->pluck('permission_name')->values()->all()];
+        })->all();
+
         DB::transaction(function () use ($submittedRoles, $rolePermissions) {
             // Replace mappings only for roles that were explicitly submitted.
             foreach ($submittedRoles as $role) {
@@ -188,6 +199,12 @@ class PermissionController extends Controller
                 }
             }
         });
+
+        $newValues = $submittedRoles->mapWithKeys(function (string $role) {
+            return [$role => RolePermission::where('role', $role)->orderBy('permission_name')->pluck('permission_name')->values()->all()];
+        })->all();
+
+        AuditLog::record('permissions.role_matrix_updated', null, $oldValues, $newValues);
 
         return redirect()->route('admin.permissions.index')
             ->with('status', 'Role permissions updated.');
@@ -230,6 +247,11 @@ class PermissionController extends Controller
                 ->withErrors(['permissions' => 'Invalid permission submitted: ' . $invalidPermissionNames->implode(', ')]);
         }
 
+        $oldValues = [
+            'role' => $role,
+            'permissions' => RolePermission::where('role', $role)->orderBy('permission_name')->pluck('permission_name')->values()->all(),
+        ];
+
         RolePermission::where('role', $role)->delete();
 
         foreach ($permissions as $permissionName) {
@@ -238,6 +260,11 @@ class PermissionController extends Controller
                 'permission_name' => $permissionName,
             ]);
         }
+
+        AuditLog::record('permissions.role_updated', null, $oldValues, [
+            'role' => $role,
+            'permissions' => RolePermission::where('role', $role)->orderBy('permission_name')->pluck('permission_name')->values()->all(),
+        ]);
 
         return redirect()
             ->route('admin.permissions.index', ['role' => $role])
@@ -253,8 +280,16 @@ class PermissionController extends Controller
                 ->withErrors(['permission' => 'This permission is referenced by the live system and cannot be deleted from the UI.']);
         }
 
+        $oldValues = [
+            'name' => $permission->name,
+            'label' => $permission->label,
+            'group' => $permission->group,
+        ];
+
         RolePermission::where('permission_name', $permission->name)->delete();
         $permission->delete();
+
+        AuditLog::record('permissions.deleted', null, $oldValues, []);
 
         return redirect()->route('admin.permissions.index')
             ->with('status', 'Permission deleted.');

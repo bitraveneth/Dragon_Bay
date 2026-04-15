@@ -5,21 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AgentPriceList;
 use App\Models\AgentCommissionRule;
-use App\Models\Client;
 use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\OrderStatusHistory;
 use App\Models\Product;
-use App\Models\StockEntry;
-use App\Models\StockMovement;
 use App\Models\Delivery;
 use App\Models\Invoice;
 use App\Models\Receipt;
 use App\Models\CreditNote;
-use App\Services\ClientCreditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class AgentController extends Controller
 {
@@ -95,177 +87,9 @@ class AgentController extends Controller
 
     public function storeOrder(Request $request)
     {
-        $agent = $this->requireAgent($request);
+        $this->requireAgent($request);
 
-        $data = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'order_type' => 'required|in:regular,bulk,sample,return',
-            'delivery_date' => 'nullable|date',
-            'payment_mode' => 'nullable|in:cash,credit,bkash,bank_transfer',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'nullable|numeric|min:0',
-        ]);
-
-        if (($data['order_type'] ?? null) === 'bulk' && empty($data['payment_mode'])) {
-            $data['payment_mode'] = 'credit';
-        }
-
-        $order = DB::transaction(function () use ($agent, $data) {
-            $order = Order::create([
-                'client_id' => $data['client_id'],
-                'agent_id' => $agent->id,
-                'order_type' => $data['order_type'],
-                'delivery_date' => $data['delivery_date'] ?? null,
-                'status' => 'confirmed',
-                'total' => 0,
-                'notes' => $data['notes'] ?? null,
-                'payment_mode' => $data['payment_mode'] ?? null,
-            ]);
-
-            OrderStatusHistory::create([
-                'order_id' => $order->id,
-                'status' => $order->status,
-                'changed_at' => now(),
-            ]);
-
-            $agentPrices = AgentPriceList::where('agent_id', $agent->id)
-                ->pluck('price', 'product_id');
-
-            $products = Product::whereIn('id', collect($data['items'])->pluck('product_id'))
-                ->get()
-                ->keyBy('id');
-
-            $commissionRules = AgentCommissionRule::where('agent_id', $agent->id)->get();
-
-            $total = 0;
-            $commissionTotal = 0;
-
-            foreach ($data['items'] as $item) {
-                $productId = $item['product_id'];
-                $quantity = $item['quantity'];
-                $unitPrice = $agentPrices[$productId] ?? ($item['unit_price'] ?? 0);
-                $lineTotal = $quantity * $unitPrice;
-                $total += $lineTotal;
-
-                $product = $products[$productId] ?? null;
-                $sku = $product ? $product->sku : null;
-
-                $matchingRules = $commissionRules->filter(function ($rule) use ($sku, $data) {
-                    if ($rule->frequency !== 'per_order') {
-                        return false;
-                    }
-
-                    if ($rule->sku && $sku && $rule->sku !== $sku) {
-                        return false;
-                    }
-
-                    if ($rule->order_type && $rule->order_type !== $data['order_type']) {
-                        return false;
-                    }
-
-                    return true;
-                });
-
-                $lineCommission = 0;
-                foreach ($matchingRules as $rule) {
-                    if ($rule->type === 'percentage') {
-                        $lineCommission += ($lineTotal * ($rule->value / 100));
-                    } elseif ($rule->type === 'fixed') {
-                        $lineCommission += $rule->value;
-                    }
-                }
-
-                $commissionTotal += $lineCommission;
-                $commissionRate = $lineTotal > 0 ? ($lineCommission / $lineTotal) * 100 : null;
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $productId,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'order_type' => $data['order_type'],
-                    'commission_rate' => $commissionRate,
-                    'commission_amount' => $lineCommission,
-                ]);
-
-                $entries = StockEntry::where('product_id', $productId)
-                    ->where('status', 'available')
-                    ->orderBy('created_at')
-                    ->lockForUpdate()
-                    ->get();
-
-                $availableQty = (float) $entries->sum('quantity');
-                if ($availableQty < (float) $quantity) {
-                    throw ValidationException::withMessages([
-                        'items' => ['Insufficient available stock for product ' . ($product?->name ?? ('#' . $productId)) . '.'],
-                    ]);
-                }
-
-                $toReserve = $quantity;
-                foreach ($entries as $entry) {
-                    if ($toReserve <= 0) {
-                        break;
-                    }
-
-                    $reserved = min((float) $entry->quantity, (float) $toReserve);
-                    $entry->quantity = (float) $entry->quantity - $reserved;
-                    if ((float) $entry->quantity <= 0.0) {
-                        $entry->status = 'reserved';
-                    }
-                    $entry->save();
-
-                    StockMovement::recordFor(
-                        $entry,
-                        'reservation-out',
-                        $reserved * -1,
-                        'Reserved for order #' . $order->id,
-                        $order->id
-                    );
-
-                    $reservedEntry = StockEntry::create([
-                        'order_id' => $order->id,
-                        'warehouse_id' => $entry->warehouse_id,
-                        'warehouse_location_id' => $entry->warehouse_location_id,
-                        'product_id' => $entry->product_id,
-                        'batch_id' => $entry->batch_id,
-                        'quantity' => $reserved,
-                        'status' => 'reserved',
-                    ]);
-
-                    StockMovement::recordFor(
-                        $reservedEntry,
-                        'reservation-in',
-                        $reserved,
-                        'Reserved for order #' . $order->id,
-                        $order->id
-                    );
-                    $toReserve -= $reserved;
-                }
-            }
-
-            if ($this->usesCredit($data['payment_mode'] ?? null, $data['order_type'])) {
-                $client = Client::find($data['client_id']);
-                if ($client) {
-                    app(ClientCreditService::class)->ensureWithinLimit($client, (float) $total, $order);
-                }
-            }
-
-            $order->update([
-                'total' => $total,
-                'commission_total' => $commissionTotal,
-                'payment_mode' => $data['payment_mode'] ?? null,
-                'is_credit_used' => $this->usesCredit($data['payment_mode'] ?? null, $data['order_type']),
-            ]);
-
-            return $order;
-        });
-
-        $order->load(['items.product', 'statusHistory']);
-
-        return response()->json($order, 201);
+        abort(403, 'Orders are created by staff only.');
     }
 
     public function deliveries(Request $request)
@@ -432,10 +256,5 @@ class AgentController extends Controller
             'outstanding_balance' => $outstanding,
             'last_receipt' => $lastReceipt,
         ]);
-    }
-
-    protected function usesCredit(?string $paymentMode, string $orderType): bool
-    {
-        return $paymentMode === 'credit' && in_array($orderType, ['regular', 'bulk'], true);
     }
 }

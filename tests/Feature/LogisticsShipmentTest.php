@@ -589,6 +589,188 @@ class LogisticsShipmentTest extends TestCase
         $this->assertStringContainsString('SHP-EXPORT', $response->streamedContent());
     }
 
+    public function test_logistics_profitability_export_uses_approved_costs_and_date_range(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-profitability-report@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+
+        $inRangeShipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-PROFIT-IN',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 5,
+        ]);
+        DB::table('shipments')->where('id', $inRangeShipment->id)->update([
+            'created_at' => '2026-04-10 10:00:00',
+            'updated_at' => '2026-04-10 10:00:00',
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $inRangeShipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 10,
+            'length_cm' => 10,
+            'width_cm' => 10,
+            'height_cm' => 10,
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $inRangeShipment->id,
+            'expense_type' => 'handling',
+            'estimated_amount' => 12,
+            'actual_amount' => 15,
+            'status' => 'approved',
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $inRangeShipment->id,
+            'expense_type' => 'draft-fee',
+            'estimated_amount' => 99,
+            'status' => 'draft',
+        ]);
+
+        $outOfRangeShipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-PROFIT-OUT',
+            'mode' => 'sea_lcl',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 7,
+        ]);
+        DB::table('shipments')->where('id', $outOfRangeShipment->id)->update([
+            'created_at' => '2026-03-25 10:00:00',
+            'updated_at' => '2026-03-25 10:00:00',
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $outOfRangeShipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 8,
+            'length_cm' => 10,
+            'width_cm' => 10,
+            'height_cm' => 10,
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $outOfRangeShipment->id,
+            'expense_type' => 'freight',
+            'estimated_amount' => 20,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($user)->get('/admin/reports/shipments/profitability/export/excel?from=2026-04-01&to=2026-04-30');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('SHP-PROFIT-IN', $csv);
+        $this->assertStringContainsString('50.00,15.00,35.00', $csv);
+        $this->assertStringNotContainsString('SHP-PROFIT-OUT', $csv);
+        $this->assertStringNotContainsString('99.00', $csv);
+    }
+
+    public function test_logistics_mode_export_aggregates_revenue_cost_and_weight_by_mode(): void
+    {
+        $user = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-mode-report@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+        $agent = Agent::create(['name' => 'Client One', 'is_active' => true]);
+
+        $airShipmentA = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-AIR-1',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 10,
+        ]);
+        DB::table('shipments')->where('id', $airShipmentA->id)->update([
+            'created_at' => '2026-04-11 09:00:00',
+            'updated_at' => '2026-04-11 09:00:00',
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $airShipmentA->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 10,
+            'length_cm' => 10,
+            'width_cm' => 10,
+            'height_cm' => 10,
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $airShipmentA->id,
+            'expense_type' => 'air-fee',
+            'estimated_amount' => 20,
+            'status' => 'approved',
+        ]);
+
+        $airShipmentB = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-AIR-2',
+            'mode' => 'air',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 8,
+        ]);
+        DB::table('shipments')->where('id', $airShipmentB->id)->update([
+            'created_at' => '2026-04-12 09:00:00',
+            'updated_at' => '2026-04-12 09:00:00',
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $airShipmentB->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 5,
+            'length_cm' => 10,
+            'width_cm' => 10,
+            'height_cm' => 10,
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $airShipmentB->id,
+            'expense_type' => 'air-fee',
+            'estimated_amount' => 5,
+            'status' => 'approved',
+        ]);
+
+        $seaShipment = Shipment::create([
+            'agent_id' => $agent->id,
+            'shipment_no' => 'SHP-SEA-1',
+            'mode' => 'sea_lcl',
+            'status' => 'delivered',
+            'estimated_unit_rate' => 6,
+        ]);
+        DB::table('shipments')->where('id', $seaShipment->id)->update([
+            'created_at' => '2026-04-13 09:00:00',
+            'updated_at' => '2026-04-13 09:00:00',
+        ]);
+        ShipmentPackage::create([
+            'shipment_id' => $seaShipment->id,
+            'pieces' => 1,
+            'actual_weight_kg' => 20,
+            'length_cm' => 10,
+            'width_cm' => 10,
+            'height_cm' => 10,
+        ]);
+        ShipmentExpense::create([
+            'shipment_id' => $seaShipment->id,
+            'expense_type' => 'sea-fee',
+            'estimated_amount' => 25,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($user)->get('/admin/reports/shipments/mode/export/excel?from=2026-04-01&to=2026-04-30');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('Mode,Shipments,"Chargeable KG",Revenue,Cost,Profit', $csv);
+        $this->assertStringContainsString("AIR,2,15.000,140.00,25.00,115.00", $csv);
+        $this->assertStringContainsString("\"SEA LCL\",1,20.000,120.00,25.00,95.00", $csv);
+    }
+
     public function test_settlement_becomes_payable_after_client_payment_is_recorded(): void
     {
         $user = User::create([

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AgentAdvance;
 use App\Models\AgentAdvanceApplication;
+use App\Models\AuditLog;
 use App\Models\CreditNote;
 use App\Models\DeliveryItem;
 use App\Models\LedgerEntry;
@@ -51,6 +52,12 @@ class FinanceController extends Controller
         }
 
         DB::transaction(function () use ($invoice, $data) {
+            $oldValues = [
+                'withholding' => (float) $invoice->withholding,
+                'cash_total' => (float) $invoice->cash_total,
+                'outstanding' => (float) $invoice->outstanding,
+                'status' => $invoice->status,
+            ];
             $previousWithholding = (float) $invoice->withholding;
             $invoice->withholding = round((float) $data['withholding'], 2);
             $invoice->save();
@@ -62,6 +69,13 @@ class FinanceController extends Controller
             );
 
             $invoice->recalculateStatus();
+
+            AuditLog::record('finance.withholding_updated', $invoice->fresh(), $oldValues, [
+                'withholding' => (float) $invoice->fresh()->withholding,
+                'cash_total' => (float) $invoice->fresh()->cash_total,
+                'outstanding' => (float) $invoice->fresh()->outstanding,
+                'status' => $invoice->fresh()->status,
+            ]);
         });
 
         return redirect()->route('admin.finance.show', $invoice)->with('status', 'Withholding updated.');
@@ -231,6 +245,15 @@ class FinanceController extends Controller
 
             $this->applyAvailableAgentAdvances($invoice);
             $invoice->recalculateStatus();
+
+            AuditLog::record('finance.invoice_created', $invoice->fresh(), [], [
+                'order_id' => $invoice->order_id,
+                'number' => $invoice->number,
+                'net_total' => (float) $invoice->net_total,
+                'vat_amount' => (float) $invoice->vat_amount,
+                'withholding' => (float) $invoice->withholding,
+                'status' => $invoice->status,
+            ]);
         });
 
         return $invoice?->fresh();
@@ -283,6 +306,13 @@ class FinanceController extends Controller
             ]));
 
             $invoice->recalculateStatus();
+
+            AuditLog::record('finance.receipt_recorded', $receipt, [], [
+                'invoice_id' => $invoice->id,
+                'amount' => (float) $receipt->amount,
+                'payment_method' => $receipt->payment_method,
+                'received_at' => optional($receipt->received_at)->toDateString(),
+            ]);
         });
 
         app(CommissionSettlementService::class)->syncForInvoice(
@@ -405,6 +435,14 @@ class FinanceController extends Controller
             ]));
 
             $invoice->recalculateStatus();
+
+            AuditLog::record('finance.credit_note_created', $credit, [], [
+                'invoice_id' => $invoice->id,
+                'order_id' => $credit->order_id,
+                'number' => $credit->number,
+                'amount' => (float) $credit->amount,
+                'reason' => $credit->reason,
+            ]);
         });
 
         return redirect()->route('admin.finance.show', $invoice)->with('status', 'Credit note created.');

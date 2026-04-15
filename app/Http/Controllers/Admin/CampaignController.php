@@ -59,6 +59,14 @@ class CampaignController extends Controller
 
     public function update(Request $request, Campaign $campaign)
     {
+        if ($this->hasPostedLedgerEntries($campaign)) {
+            return redirect()
+                ->route('admin.campaigns.index')
+                ->withErrors([
+                    'campaign' => 'Posted campaigns cannot be edited. Preserve the ledger trail and record a correcting adjustment instead.',
+                ]);
+        }
+
         $data = $this->validated($request);
 
         if ($request->hasFile('attachment')) {
@@ -69,7 +77,7 @@ class CampaignController extends Controller
             $data['attachment_path'] = $request->file('attachment')->store('marketing/campaigns', 'public');
         }
 
-        if ($this->hasPostedLedgerEntries($campaign) || $this->payloadPostsLedgerEntries($data)) {
+        if ($this->payloadPostsLedgerEntries($data)) {
             $this->ensureCanManageLedgerEntries();
         }
 
@@ -84,7 +92,11 @@ class CampaignController extends Controller
     public function destroy(Campaign $campaign)
     {
         if ($this->hasPostedLedgerEntries($campaign)) {
-            $this->ensureCanManageLedgerEntries();
+            return redirect()
+                ->route('admin.campaigns.index')
+                ->withErrors([
+                    'campaign' => 'Posted campaigns cannot be deleted. Preserve the ledger trail and record a correcting adjustment instead.',
+                ]);
         }
 
         if ($campaign->attachment_path) {

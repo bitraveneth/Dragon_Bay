@@ -8,12 +8,14 @@ use App\Http\Controllers\Admin\CommissionSettlementController;
 use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Api\AgentController as AgentApiController;
+use App\Http\Controllers\Api\DriverController as DriverApiController;
 use App\Http\Controllers\Admin\PurchaseBillController;
 use App\Http\Controllers\Admin\ProductionController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SalesTargetController;
 use App\Models\Agent;
 use App\Models\AgentAdvance;
+use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\AgentCommissionSettlement;
 use App\Models\AgentCommissionRule;
@@ -54,6 +56,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Tests\TestCase;
@@ -72,7 +75,7 @@ class SystemCalculationTest extends TestCase
         $this->createMinimalSchema();
     }
 
-    public function test_agent_order_calculates_total_commission_and_reserves_stock(): void
+    public function test_staff_order_calculates_total_commission_and_reserves_stock(): void
     {
         $agent = Agent::create([
             'name' => 'Agent One',
@@ -131,21 +134,20 @@ class SystemCalculationTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($user, 'sanctum')
-            ->postJson('/api/agent/orders', [
-                'client_id' => $client->id,
-                'order_type' => 'regular',
-                'items' => [
-                    [
-                        'product_id' => $product->id,
-                        'quantity' => 10,
-                    ],
+        app(OrderController::class)->store(new Request([
+            'client_id' => $client->id,
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 10,
+                    'unit_price' => 120,
                 ],
-            ]);
+            ],
+        ]));
 
-        $response->assertCreated();
-
-        $orderId = (int) $response->json('id');
+        $orderId = (int) Order::latest('id')->value('id');
         $this->assertGreaterThan(0, $orderId);
 
         $order = Order::findOrFail($orderId);
@@ -394,6 +396,103 @@ class SystemCalculationTest extends TestCase
         $this->assertSame('Outstanding receivables of BDT 300.00', $financeAlert['message']);
     }
 
+    public function test_audit_logs_record_finance_actions(): void
+    {
+        $admin = User::create([
+            'name' => 'Finance Admin',
+            'email' => 'finance-admin-audit@example.test',
+            'password' => 'secret',
+            'role' => 'admin',
+        ]);
+
+        $agent = Agent::create([
+            'name' => 'Agent Audit Finance',
+            'credit_limit' => 100000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $tax = TaxClass::create([
+            'name' => 'Audit VAT',
+            'rate' => 15,
+        ]);
+
+        $product = Product::create([
+            'sku' => 'SKU-AUDIT-FIN',
+            'name' => 'Audit Finance Product',
+            'tax_class_id' => $tax->id,
+            'base_price' => 100,
+        ]);
+
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'status' => 'delivered',
+            'total' => 0,
+        ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'unit_price' => 100,
+            'order_type' => 'regular',
+            'commission_amount' => 0,
+        ]);
+
+        $this->actingAs($admin);
+
+        $invoice = app(FinanceController::class)->ensureInvoiceForOrder($order->fresh());
+        $this->assertNotNull($invoice);
+
+        app(FinanceController::class)->storeReceipt(new Request([
+            'amount' => 20,
+            'payment_method' => 'cash',
+            'received_at' => now()->toDateString(),
+        ]), $invoice->fresh());
+
+        app(FinanceController::class)->storeCreditNote(new Request([
+            'amount' => 10,
+            'reason' => 'Audit adjustment',
+        ]), $invoice->fresh());
+
+        app(FinanceController::class)->updateWithholding(new Request([
+            'withholding' => 5,
+        ]), $invoice->fresh());
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'finance.invoice_created',
+            'auditable_type' => Invoice::class,
+            'auditable_id' => $invoice->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'finance.receipt_recorded',
+            'auditable_type' => Receipt::class,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'finance.credit_note_created',
+            'auditable_type' => CreditNote::class,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'finance.withholding_updated',
+            'auditable_type' => Invoice::class,
+            'auditable_id' => $invoice->id,
+        ]);
+
+        $withholdingLog = AuditLog::where('action', 'finance.withholding_updated')
+            ->where('auditable_type', Invoice::class)
+            ->where('auditable_id', $invoice->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame(0.0, (float) ($withholdingLog->old_values['withholding'] ?? null));
+        $this->assertSame(5.0, (float) ($withholdingLog->new_values['withholding'] ?? null));
+    }
+
     public function test_start_to_end_calculation_pipeline(): void
     {
         // 1) Master + procurement stock ready (simulated by available stock entries).
@@ -454,18 +553,18 @@ class SystemCalculationTest extends TestCase
             'is_active' => true,
         ]);
 
-        // 2) Sales order with commission + stock reservation.
-        $orderResponse = $this->actingAs($user, 'sanctum')
-            ->postJson('/api/agent/orders', [
-                'client_id' => $clientE2E->id,
-                'order_type' => 'regular',
-                'items' => [
-                    ['product_id' => $product->id, 'quantity' => 20],
-                ],
-            ]);
-        $orderResponse->assertCreated();
+        // 2) Staff sales order with commission + stock reservation.
+        $this->actingAs($user);
+        app(OrderController::class)->store(new Request([
+            'client_id' => $clientE2E->id,
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 20, 'unit_price' => 120],
+            ],
+        ]));
 
-        $order = Order::findOrFail((int) $orderResponse->json('id'));
+        $order = Order::latest('id')->firstOrFail();
         $this->assertEquals(2400.0, (float) $order->total);
         $this->assertEquals(120.0, (float) $order->commission_total);
 
@@ -1273,7 +1372,7 @@ class SystemCalculationTest extends TestCase
         $this->assertEquals(14.0, (float) StockEntry::where('status', 'available')->sum('quantity'));
     }
 
-    public function test_agent_api_credit_orders_respect_client_credit_limit(): void
+    public function test_agent_api_cannot_create_orders_when_orders_are_staff_only(): void
     {
         $agent = Agent::create([
             'name' => 'Agent API Credit Gate',
@@ -1316,23 +1415,7 @@ class SystemCalculationTest extends TestCase
 
         $controller = app(AgentApiController::class);
 
-        $firstRequest = new Request([
-            'client_id' => $client->id,
-            'order_type' => 'regular',
-            'payment_mode' => 'credit',
-            'items' => [
-                ['product_id' => $product->id, 'quantity' => 5, 'unit_price' => 100],
-            ],
-        ]);
-        $firstRequest->setUserResolver(fn () => $user);
-
-        $response = $controller->storeOrder($firstRequest);
-
-        $this->assertSame(201, $response->getStatusCode());
-        $this->assertSame(1, Order::count());
-        $this->assertTrue((bool) Order::firstOrFail()->is_credit_used);
-
-        $secondRequest = new Request([
+        $request = new Request([
             'client_id' => $client->id,
             'order_type' => 'regular',
             'payment_mode' => 'credit',
@@ -1340,21 +1423,19 @@ class SystemCalculationTest extends TestCase
                 ['product_id' => $product->id, 'quantity' => 3, 'unit_price' => 100],
             ],
         ]);
-        $secondRequest->setUserResolver(fn () => $user);
+        $request->setUserResolver(fn () => $user);
 
         try {
-            $controller->storeOrder($secondRequest);
+            $controller->storeOrder($request);
 
-            $this->fail('Expected agent API credit-limit validation to block the second order.');
-        } catch (ValidationException $exception) {
-            $this->assertStringContainsString(
-                'Credit limit exceeded.',
-                $exception->errors()['client_id'][0] ?? ''
-            );
+            $this->fail('Expected agent API order creation to be blocked.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+            $this->assertStringContainsString('Orders are created by staff only.', $exception->getMessage());
         }
 
-        $this->assertSame(1, Order::count());
-        $this->assertEquals(15.0, (float) StockEntry::where('status', 'available')->sum('quantity'));
+        $this->assertSame(0, Order::count());
+        $this->assertEquals(20.0, (float) StockEntry::where('status', 'available')->sum('quantity'));
     }
 
     public function test_delivery_completion_auto_creates_invoice_for_billable_orders(): void
@@ -1428,6 +1509,153 @@ class SystemCalculationTest extends TestCase
         $this->assertNotNull($invoice);
         $this->assertEquals(100.0, (float) $invoice->net_total);
         $this->assertEquals(15.0, (float) $invoice->vat_amount);
+    }
+
+    public function test_delivery_status_change_notifies_operations_staff(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-delivery-notify@example.test',
+            'password' => 'secret',
+            'role' => 'admin',
+        ]);
+
+        $staff = User::create([
+            'name' => 'Ops Coordinator',
+            'email' => 'ops-delivery-notify@example.test',
+            'password' => 'secret',
+            'role' => 'delivery_coordinator',
+        ]);
+
+        $agent = Agent::create([
+            'name' => 'Notify Agent',
+            'credit_limit' => 100000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $product = Product::create([
+            'sku' => 'SKU-DELIVERY-NOTIFY',
+            'name' => 'Delivery Notify Product',
+            'product_type' => 'finished',
+            'is_active' => true,
+            'base_price' => 20,
+        ]);
+
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'status' => 'picked',
+            'total' => 100,
+        ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'unit_price' => 20,
+            'order_type' => 'regular',
+            'commission_amount' => 0,
+        ]);
+
+        $delivery = Delivery::create([
+            'order_id' => $order->id,
+            'status' => 'scheduled',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.deliveries.update', $delivery), [
+            'status' => 'in_transit',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('notifications', [
+            'type' => SystemAlertNotification::class,
+            'notifiable_type' => User::class,
+            'notifiable_id' => $staff->id,
+        ]);
+    }
+
+    public function test_driver_delivery_status_change_notifies_operations_staff(): void
+    {
+        $staff = User::create([
+            'name' => 'Ops Coordinator',
+            'email' => 'ops-driver-delivery-notify@example.test',
+            'password' => 'secret',
+            'role' => 'delivery_coordinator',
+        ]);
+
+        $employee = Employee::create([
+            'name' => 'Driver One',
+            'work_email' => 'driver-one@example.test',
+        ]);
+
+        $driverUser = User::create([
+            'name' => 'Driver One',
+            'email' => 'driver-one@example.test',
+            'password' => 'secret',
+            'role' => 'sales_officer',
+            'employee_id' => $employee->id,
+        ]);
+
+        $vehicleId = DB::table('vehicles')->insertGetId([
+            'name' => 'Driver Truck',
+            'license_plate' => 'DRV-001',
+            'driver' => 'Driver One',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $agent = Agent::create([
+            'name' => 'Driver Notify Agent',
+            'credit_limit' => 100000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $product = Product::create([
+            'sku' => 'SKU-DRIVER-NOTIFY',
+            'name' => 'Driver Notify Product',
+            'product_type' => 'finished',
+            'is_active' => true,
+            'base_price' => 20,
+        ]);
+
+        $order = Order::create([
+            'agent_id' => $agent->id,
+            'order_type' => 'regular',
+            'status' => 'picked',
+            'total' => 100,
+        ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'unit_price' => 20,
+            'order_type' => 'regular',
+            'commission_amount' => 0,
+        ]);
+
+        $delivery = Delivery::create([
+            'order_id' => $order->id,
+            'vehicle_id' => $vehicleId,
+            'status' => 'scheduled',
+        ]);
+
+        $request = Request::create('/api/driver/deliveries/' . $delivery->id . '/status', 'POST', [
+            'status' => 'in_transit',
+        ]);
+        $request->setUserResolver(fn () => $driverUser);
+
+        $response = app(DriverApiController::class)->updateStatus($request, $delivery->fresh());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertDatabaseHas('notifications', [
+            'type' => SystemAlertNotification::class,
+            'notifiable_type' => User::class,
+            'notifiable_id' => $staff->id,
+        ]);
     }
 
     public function test_purchase_bill_records_input_vat_and_accounts_payable_total(): void
@@ -1592,6 +1820,60 @@ class SystemCalculationTest extends TestCase
             'account' => 'Bank',
             'credit' => 100,
         ]);
+    }
+
+    public function test_audit_logs_record_commission_settlement_status_changes(): void
+    {
+        $admin = User::create([
+            'name' => 'Commission Admin',
+            'email' => 'commission-admin-audit@example.test',
+            'password' => 'secret',
+            'role' => 'admin',
+        ]);
+
+        $agent = Agent::create([
+            'name' => 'Commission Audit Agent',
+            'credit_limit' => 100000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $settlement = AgentCommissionSettlement::create([
+            'agent_id' => $agent->id,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'sales_total' => 1000,
+            'commission_total' => 100,
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($admin);
+
+        $controller = app(CommissionSettlementController::class);
+        $controller->updateStatus(new Request(['status' => 'expected']), $settlement->fresh());
+        $controller->updateStatus(new Request(['status' => 'approved']), $settlement->fresh());
+        $controller->updateStatus(new Request([
+            'status' => 'paid',
+            'payment_method' => 'bank_transfer',
+            'payment_reference' => 'AUDIT-PAYOUT-1',
+        ]), $settlement->fresh());
+
+        $this->assertSame(3, AuditLog::where('action', 'commissions.settlement_status_updated')->count());
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'commissions.settlement_status_updated',
+            'auditable_type' => AgentCommissionSettlement::class,
+            'auditable_id' => $settlement->id,
+        ]);
+
+        $paidLog = AuditLog::where('action', 'commissions.settlement_status_updated')
+            ->where('auditable_id', $settlement->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('approved', $paidLog->old_values['status'] ?? null);
+        $this->assertSame('paid', $paidLog->new_values['status'] ?? null);
+        $this->assertSame('AUDIT-PAYOUT-1', $paidLog->new_values['payment_reference'] ?? null);
     }
 
     public function test_credit_note_reverses_output_vat_and_vat_report_totals(): void
@@ -2365,6 +2647,113 @@ class SystemCalculationTest extends TestCase
         );
 
         $this->assertEquals(30.0, (float) $view->getData()['otherExpenses']);
+    }
+
+    public function test_posted_campaigns_and_gifts_cannot_be_edited_or_deleted(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin-posted-marketing@example.test',
+            'password' => 'secret',
+            'role' => 'admin',
+        ]);
+
+        $agent = Agent::create([
+            'name' => 'Posted Gift Agent',
+            'credit_limit' => 100000,
+            'withholding_rate' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.campaigns.index'))
+            ->post(route('admin.campaigns.store'), [
+                'name' => 'Posted Campaign',
+                'platform' => 'field',
+                'start_date' => now()->toDateString(),
+                'cost' => 100,
+                'status' => Campaign::STATUS_RUNNING,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $campaign = Campaign::firstOrFail();
+
+        $this->actingAs($admin)
+            ->from(route('admin.gifts.index'))
+            ->post(route('admin.gifts.store'), [
+                'agent_id' => $agent->id,
+                'date' => now()->toDateString(),
+                'amount' => 50,
+                'status' => CustomerGift::STATUS_GIVEN,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $gift = CustomerGift::firstOrFail();
+
+        $campaignUpdateResponse = $this->actingAs($admin)
+            ->from(route('admin.campaigns.index'))
+            ->patch(route('admin.campaigns.update', $campaign), [
+                'name' => 'Edited Posted Campaign',
+                'platform' => 'field',
+                'start_date' => now()->toDateString(),
+                'cost' => 120,
+                'status' => Campaign::STATUS_COMPLETED,
+            ]);
+
+        $campaignUpdateResponse->assertSessionHasErrors('campaign');
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $campaign->id,
+            'name' => 'Posted Campaign',
+            'cost' => 100,
+            'status' => Campaign::STATUS_RUNNING,
+        ]);
+
+        $campaignDeleteResponse = $this->actingAs($admin)
+            ->from(route('admin.campaigns.index'))
+            ->delete(route('admin.campaigns.destroy', $campaign));
+
+        $campaignDeleteResponse->assertSessionHasErrors('campaign');
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $campaign->id,
+        ]);
+
+        $giftUpdateResponse = $this->actingAs($admin)
+            ->from(route('admin.gifts.index'))
+            ->patch(route('admin.gifts.update', $gift), [
+                'agent_id' => $agent->id,
+                'date' => now()->toDateString(),
+                'amount' => 75,
+                'status' => CustomerGift::STATUS_GIVEN,
+            ]);
+
+        $giftUpdateResponse->assertSessionHasErrors('gift');
+        $this->assertDatabaseHas('customer_gifts', [
+            'id' => $gift->id,
+            'amount' => 50,
+            'status' => CustomerGift::STATUS_GIVEN,
+        ]);
+
+        $giftDeleteResponse = $this->actingAs($admin)
+            ->from(route('admin.gifts.index'))
+            ->delete(route('admin.gifts.destroy', $gift));
+
+        $giftDeleteResponse->assertSessionHasErrors('gift');
+        $this->assertDatabaseHas('customer_gifts', [
+            'id' => $gift->id,
+        ]);
+
+        $this->assertDatabaseHas('ledger_entries', [
+            'description' => 'Campaign expense #' . $campaign->id,
+            'account' => 'Marketing Expense',
+            'debit' => 100,
+            'credit' => 0,
+        ]);
+        $this->assertDatabaseHas('ledger_entries', [
+            'description' => 'Customer gift #' . $gift->id,
+            'account' => 'Selling & Distribution Expense',
+            'debit' => 50,
+            'credit' => 0,
+        ]);
     }
 
     public function test_supplier_creation_rejects_duplicate_name_email_and_tax_id(): void
@@ -4335,6 +4724,95 @@ class SystemCalculationTest extends TestCase
         }
     }
 
+    public function test_audit_logs_record_permission_and_user_access_changes(): void
+    {
+        DB::table('roles')->insert([
+            ['key' => 'super_admin', 'label' => 'Super Admin', 'is_system' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'sales_officer', 'label' => 'Sales Officer', 'is_system' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'accounts_officer', 'label' => 'Accounts Officer', 'is_system' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $superAdmin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'super-admin-audit@example.test',
+            'password' => 'secret',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.permissions.store'), [
+                'name' => 'audit.example.manage',
+                'label' => 'Manage audit example',
+                'group' => 'Audit & Logs',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $managedUser = User::create([
+            'name' => 'Role Audit Target',
+            'email' => 'role-audit-target@example.test',
+            'password' => 'secret',
+            'role' => 'sales_officer',
+        ]);
+
+        DB::table('user_roles')->insert([
+            'user_id' => $managedUser->id,
+            'role_key' => 'sales_officer',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->patch(route('admin.roles.update', $managedUser), [
+                'role' => 'accounts_officer',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $employeeId = DB::table('employees')->insertGetId([
+            'name' => 'Audit Employee',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.employees.user.store', $employeeId), [
+                'name' => 'Audit Employee User',
+                'email' => 'audit-employee-user@example.test',
+                'role' => 'accounts_officer',
+                'password' => 'secret123',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $employeeUser = User::where('email', 'audit-employee-user@example.test')->firstOrFail();
+        $permission = Permission::where('name', 'audit.example.manage')->firstOrFail();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $superAdmin->id,
+            'action' => 'permissions.created',
+            'auditable_type' => Permission::class,
+            'auditable_id' => $permission->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $superAdmin->id,
+            'action' => 'users.role_updated',
+            'auditable_type' => User::class,
+            'auditable_id' => $managedUser->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $superAdmin->id,
+            'action' => 'users.employee_login_created',
+            'auditable_type' => User::class,
+            'auditable_id' => $employeeUser->id,
+        ]);
+
+        $roleLog = AuditLog::where('action', 'users.role_updated')
+            ->where('auditable_id', $managedUser->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('sales_officer', $roleLog->old_values['role'] ?? null);
+        $this->assertSame('accounts_officer', $roleLog->new_values['role'] ?? null);
+    }
+
     public function test_permission_manager_accepts_dotted_keys_and_protects_live_permissions(): void
     {
         $superAdmin = User::create([
@@ -6296,6 +6774,19 @@ class SystemCalculationTest extends TestCase
             $table->string('role_key');
             $table->timestamps();
             $table->unique(['user_id', 'role_key']);
+        });
+
+        Schema::create('audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('action');
+            $table->string('auditable_type')->nullable();
+            $table->unsignedBigInteger('auditable_id')->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
+            $table->string('ip_address', 64)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('notifications', function (Blueprint $table) {

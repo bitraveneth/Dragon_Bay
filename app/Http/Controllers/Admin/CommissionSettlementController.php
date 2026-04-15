@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\AgentCommissionSettlement;
+use App\Models\AuditLog;
 use App\Models\LedgerEntry;
 use App\Services\CommissionSettlementService;
 use Illuminate\Http\Request;
@@ -84,6 +85,20 @@ class CommissionSettlementController extends Controller
             $settlement->save();
             app(CommissionSettlementService::class)->refreshStatus($settlement);
 
+            AuditLog::record(
+                $settlement->wasRecentlyCreated ? 'commissions.settlement_created' : 'commissions.settlement_generated',
+                $settlement,
+                [],
+                [
+                    'agent_id' => $settlement->agent_id,
+                    'period_start' => $settlement->period_start?->toDateString(),
+                    'period_end' => $settlement->period_end?->toDateString(),
+                    'sales_total' => (float) $settlement->sales_total,
+                    'commission_total' => (float) $settlement->commission_total,
+                    'status' => $settlement->status,
+                ]
+            );
+
             $processedAgentIds[] = $agent->id;
         }
 
@@ -118,6 +133,14 @@ class CommissionSettlementController extends Controller
         }
 
         DB::transaction(function () use ($settlement, $data) {
+            $oldValues = [
+                'status' => $settlement->status,
+                'accrued_at' => optional($settlement->accrued_at)->toDateTimeString(),
+                'paid_at' => optional($settlement->paid_at)->toDateString(),
+                'payment_method' => $settlement->payment_method,
+                'payment_reference' => $settlement->payment_reference,
+            ];
+
             if (in_array($data['status'], ['expected', 'approved', 'paid'], true)) {
                 $this->ensureAccrued($settlement);
             }
@@ -138,6 +161,16 @@ class CommissionSettlementController extends Controller
                 'payment_reference' => $data['status'] === 'paid'
                     ? ($data['payment_reference'] ?? $settlement->payment_reference)
                     : $settlement->payment_reference,
+            ]);
+
+            $settlement->refresh();
+
+            AuditLog::record('commissions.settlement_status_updated', $settlement, $oldValues, [
+                'status' => $settlement->status,
+                'accrued_at' => optional($settlement->accrued_at)->toDateTimeString(),
+                'paid_at' => optional($settlement->paid_at)->toDateString(),
+                'payment_method' => $settlement->payment_method,
+                'payment_reference' => $settlement->payment_reference,
             ]);
         });
 

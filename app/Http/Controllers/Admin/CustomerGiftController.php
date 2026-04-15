@@ -82,9 +82,17 @@ class CustomerGiftController extends Controller
 
     public function update(Request $request, CustomerGift $gift)
     {
+        if ($this->hasPostedLedgerEntries($gift)) {
+            return redirect()
+                ->route('admin.gifts.index')
+                ->withErrors([
+                    'gift' => 'Posted customer gifts cannot be edited. Preserve the ledger trail and record a correcting adjustment instead.',
+                ]);
+        }
+
         $data = $this->validated($request);
 
-        if ($this->hasPostedLedgerEntries($gift) || $this->payloadPostsLedgerEntries($data)) {
+        if ($this->payloadPostsLedgerEntries($data)) {
             $this->ensureCanManageLedgerEntries();
         }
 
@@ -99,7 +107,11 @@ class CustomerGiftController extends Controller
     public function destroy(CustomerGift $gift)
     {
         if ($this->hasPostedLedgerEntries($gift)) {
-            $this->ensureCanManageLedgerEntries();
+            return redirect()
+                ->route('admin.gifts.index')
+                ->withErrors([
+                    'gift' => 'Posted customer gifts cannot be deleted. Preserve the ledger trail and record a correcting adjustment instead.',
+                ]);
         }
 
         DB::transaction(function () use ($gift) {

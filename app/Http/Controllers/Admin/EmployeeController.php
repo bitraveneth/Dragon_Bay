@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\Permission as PermissionHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -133,6 +134,13 @@ class EmployeeController extends Controller
             'employee_id' => $employee->id,
         ]);
         $this->syncPrimaryRole($user);
+
+        AuditLog::record('users.employee_login_created', $user, [], [
+            'employee_id' => $employee->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+        ]);
 
         return redirect()
             ->route('admin.employees.show', $employee)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\Permission as PermissionHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -86,6 +87,13 @@ class RoleController extends Controller
             $user->role = $newRole;
             $user->save();
             $this->syncPrimaryRole($user, $oldPrimaryRole);
+
+            AuditLog::record('users.role_updated', $user, [
+                'role' => $oldPrimaryRole,
+            ], [
+                'role' => $user->role,
+                'role_keys' => method_exists($user, 'roleKeys') ? $user->roleKeys() : [$user->role],
+            ]);
         });
 
         return redirect()
@@ -117,10 +125,16 @@ class RoleController extends Controller
                 ->withInput();
         }
 
-        Role::create([
+        $role = Role::create([
             'key'       => $roleKey,
             'label'     => $data['label'],
             'is_system' => false,
+        ]);
+
+        AuditLog::record('roles.created', $role, [], [
+            'key' => $role->key,
+            'label' => $role->label,
+            'is_system' => (bool) $role->is_system,
         ]);
 
         return redirect()
